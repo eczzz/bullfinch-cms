@@ -1,35 +1,225 @@
 # @bullfinch/cms
 
-Multi-tenant CMS built on React + Supabase with schema-based isolation. Each client gets their own Postgres schema — complete data isolation, one Supabase project, easy offboarding.
+A multi-tenant CMS built on **React** + **Supabase** with schema-based isolation. One Supabase project hosts all your clients. Each client gets their own Postgres schema — fully isolated data, shared infrastructure, easy offboarding.
 
-## Install
+---
+
+## Table of Contents
+
+- [Why This Exists](#why-this-exists)
+- [Architecture](#architecture)
+- [Prerequisites](#prerequisites)
+- [Installation](#installation)
+- [Setup Guide](#setup-guide)
+  - [1. Create a Supabase Project](#1-create-a-supabase-project)
+  - [2. Initialize a Client Schema](#2-initialize-a-client-schema)
+  - [3. Create an Admin User](#3-create-an-admin-user)
+  - [4. Create a Client App](#4-create-a-client-app)
+  - [5. Configure Storage](#5-configure-storage)
+- [Adding More Clients](#adding-more-clients)
+- [Content Models](#content-models)
+  - [Built-in Field Types](#built-in-field-types)
+  - [Creating Models Programmatically](#creating-models-programmatically)
+- [Configuration Reference](#configuration-reference)
+  - [CMSProvider Props](#cmsprovider-props)
+  - [Branding](#branding)
+  - [Storage Adapters](#storage-adapters)
+  - [Hooks](#hooks)
+  - [Custom Field Types](#custom-field-types)
+  - [Custom Sidebar Items](#custom-sidebar-items)
+- [Consuming Content (Frontend)](#consuming-content-frontend)
+- [User Roles](#user-roles)
+- [Offboarding a Client](#offboarding-a-client)
+- [CLI Reference](#cli-reference)
+- [Project Structure](#project-structure)
+- [Development](#development)
+- [Troubleshooting](#troubleshooting)
+
+---
+
+## Why This Exists
+
+We were running a separate Supabase project ($10/month each) for every client CMS — even clients with 10 pages of content. This package consolidates all clients into one Supabase project using Postgres schemas for isolation, and provides a drop-in React admin panel.
+
+**Before:** 10 clients = 10 Supabase projects = $100/month  
+**After:** 10 clients = 1 Supabase project = $10/month
+
+Each client still gets complete data isolation, and offboarding is a single `pg_dump` command.
+
+---
+
+## Architecture
+
+```
+your-supabase-project ($10/month)
+├── cms_basecamp        ← Base Camp Ouray
+├── cms_lighthouse      ← Lighthouse Therapeutics  
+├── cms_badass          ← Badass Garage
+├── cms_finney          ← Dr. Finney
+└── ...                 ← Add as many as you need
+```
+
+Each schema contains identical tables:
+- `content_models` — defines content types (like "Homepage", "Service Page", "Team Member")
+- `content_entries` — actual content instances with JSON fields
+- `media` — uploaded file metadata
+- `users` — user profiles with role-based access
+- `settings` — key/value config (branding, site name, etc.)
+- `_migrations` — tracks which migrations have been applied
+
+**Key design decisions:**
+- **No hardcoded page types.** Everything is a content model. "Pages", "Posts", "Services" are all just models you define.
+- **No setup wizard.** Schema initialization happens via CLI. Users see the dashboard on first login, not a wizard.
+- **Supabase client is injectable.** The package never creates its own — you pass it in.
+- **Tailwind for styling.** All components use Tailwind classes. Your app provides Tailwind.
+
+---
+
+## Prerequisites
+
+- **Node.js** ≥ 18
+- **A Supabase project** (Pro plan recommended for production, Free tier works for dev)
+- **A React app** (Vite recommended, Next.js and Remix also work)
+- **Tailwind CSS** configured in your app
+
+---
+
+## Installation
 
 ```bash
 npm install @bullfinch/cms
 ```
 
-Peer dependencies: `react`, `react-dom`, `@supabase/supabase-js`
-
-## Quick Start
-
-### 1. Initialize a client schema
+Peer dependencies (install if you don't have them):
 
 ```bash
-SUPABASE_URL=https://xxx.supabase.co \
-SUPABASE_SERVICE_ROLE_KEY=xxx \
-npx @bullfinch/cms init --schema cms_acme --name "Acme Corp"
+npm install react react-dom @supabase/supabase-js
 ```
 
-### 2. Mount in your app
+---
+
+## Setup Guide
+
+### 1. Create a Supabase Project
+
+If you don't already have a shared CMS project:
+
+1. Go to [supabase.com](https://supabase.com) → New Project
+2. Name it something like `bullfinch-cms` or `client-cms`
+3. Save your **Project URL** and **Service Role Key** (Settings → API)
+4. Save your **Anon Key** too (this is what client apps use)
+
+> **Important:** The Service Role Key is only used by the CLI for schema setup. Client apps use the Anon Key.
+
+### 2. Initialize a Client Schema
+
+Set your environment variables:
+
+```bash
+export SUPABASE_URL="https://xxxxx.supabase.co"
+export SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJI..."
+```
+
+Run the init command:
+
+```bash
+npx @bullfinch/cms init --schema cms_basecamp --name "Base Camp Ouray"
+```
+
+This creates the schema and all tables. If the `exec_sql` database function doesn't exist yet, the CLI will output the SQL for you to paste into the **Supabase SQL Editor** (Dashboard → SQL Editor → New Query).
+
+> **Schema naming convention:** We use `cms_` prefix + a short identifier. Examples: `cms_basecamp`, `cms_lighthouse`, `cms_badass`. Keep it lowercase, underscores only.
+
+#### First-Time Setup: Create the exec_sql Helper
+
+For the CLI to run migrations directly, create this function once in your Supabase SQL Editor:
+
+```sql
+CREATE OR REPLACE FUNCTION exec_sql(query text)
+RETURNS void AS $$
+BEGIN EXECUTE query; END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+After this, `npx @bullfinch/cms init` will work automatically for all future clients.
+
+### 3. Create an Admin User
+
+The CMS uses Supabase Auth. Create the first admin user:
+
+**Option A: Supabase Dashboard**
+1. Go to Authentication → Users → Add User
+2. Enter email and password
+3. The trigger in the migration will auto-create a user record with `Viewer` role
+4. Promote to Admin via SQL Editor:
+   ```sql
+   UPDATE cms_basecamp.users SET role = 'Admin' WHERE email = 'admin@example.com';
+   ```
+
+**Option B: Via Supabase client (in a script)**
+```ts
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
+  db: { schema: 'cms_basecamp' },
+  auth: { autoRefreshToken: false, persistSession: false },
+});
+
+// Create auth user
+const { data, error } = await supabase.auth.admin.createUser({
+  email: 'admin@basecampouray.com',
+  password: 'secure-password-here',
+  email_confirm: true,
+  user_metadata: { first_name: 'Admin', last_name: 'User', role: 'Admin' },
+});
+```
+
+### 4. Create a Client App
+
+Each client gets their own small app (or you can use a single app with dynamic schema selection). Here's the minimal setup:
+
+#### Create the app
+
+```bash
+npm create vite@latest basecamp-cms -- --template react-ts
+cd basecamp-cms
+npm install @bullfinch/cms @supabase/supabase-js
+npm install -D tailwindcss @tailwindcss/vite
+```
+
+#### Configure Tailwind (`tailwind.config.js`)
+
+```js
+/** @type {import('tailwindcss').Config} */
+export default {
+  content: [
+    './index.html',
+    './src/**/*.{js,ts,jsx,tsx}',
+    './node_modules/@bullfinch/cms/dist/**/*.{js,ts,jsx,tsx}', // Include CMS components
+  ],
+  theme: { extend: {} },
+  plugins: [],
+};
+```
+
+#### Environment variables (`.env`)
+
+```env
+VITE_SUPABASE_URL=https://xxxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=eyJhbGciOiJI...
+VITE_CMS_SCHEMA=cms_basecamp
+```
+
+#### Main app (`src/App.tsx`)
 
 ```tsx
 import { createClient } from '@supabase/supabase-js';
 import { CMSProvider, AdminPanel } from '@bullfinch/cms';
 
 const supabase = createClient(
-  process.env.SUPABASE_URL!,
-  process.env.SUPABASE_ANON_KEY!,
-  { db: { schema: 'cms_acme' } }
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  { db: { schema: import.meta.env.VITE_CMS_SCHEMA } }
 );
 
 function App() {
@@ -38,8 +228,10 @@ function App() {
       supabase={supabase}
       config={{
         branding: {
-          businessName: 'Acme Corp',
-          primaryColor: '#3b82f6',
+          businessName: 'Base Camp Ouray',
+          primaryColor: '#224059',
+          accentColor: '#FFC844',
+          logoUrl: '/logo.png',
         },
       }}
     >
@@ -47,105 +239,643 @@ function App() {
     </CMSProvider>
   );
 }
+
+export default App;
 ```
 
-## Multi-tenancy
-
-Each client gets their own Postgres schema:
-
-```
-your-supabase-project
-├── cms_acme        ← Acme Corp
-├── cms_lighthouse  ← Lighthouse Therapeutics
-├── cms_basecamp    ← Base Camp Ouray
-└── ...
-```
-
-- **Isolation:** Schemas are fully separate. No cross-client data leaks.
-- **Cost:** One $10/month Supabase project instead of one per client.
-- **Offboarding:** `pg_dump --schema=cms_acme` gives a clean, portable SQL file.
-
-## CLI
+#### Run it
 
 ```bash
-# Initialize new client
-npx @bullfinch/cms init --schema cms_foo --name "Foo Inc"
-
-# Run migrations
-npx @bullfinch/cms migrate --schema cms_foo
-
-# Export for offboarding
-npx @bullfinch/cms export --schema cms_foo --output ./backup.sql
+npm run dev
 ```
 
-## Extension Points
+Visit `http://localhost:5173`, log in with the admin user you created, and you're in. No wizard. Just the dashboard.
 
-### Custom sidebar items
+### 5. Configure Storage
+
+Media uploads need a storage backend. Two options:
+
+#### Option A: Supabase Storage (simplest)
+
+1. In Supabase Dashboard → Storage → Create Bucket → Name it `media`, make it **public**
+2. In your app:
 
 ```tsx
-<CMSProvider config={{
-  sidebarItems: [{
-    id: 'analytics',
-    label: 'Analytics',
-    path: '/analytics',
-    component: MyAnalyticsPage,
-  }]
-}}>
+import { createSupabaseStorageAdapter } from '@bullfinch/cms';
+
+<CMSProvider
+  supabase={supabase}
+  config={{
+    storage: createSupabaseStorageAdapter(supabase, 'media'),
+    branding: { businessName: 'Base Camp Ouray' },
+  }}
+>
+```
+
+#### Option B: Cloudflare R2 / AWS S3 (presigned URLs)
+
+```tsx
+import { createPresignedUrlStorageAdapter } from '@bullfinch/cms';
+
+<CMSProvider
+  supabase={supabase}
+  config={{
+    storage: createPresignedUrlStorageAdapter({
+      getPresignedUrl: async (filename, contentType) => {
+        // Call your backend endpoint that generates presigned URLs
+        const res = await fetch('/api/presigned-url', {
+          method: 'POST',
+          body: JSON.stringify({ filename, contentType }),
+        });
+        return res.json();
+        // Expected: { presignedUrl, publicUrl, filename }
+      },
+    }),
+    branding: { businessName: 'Base Camp Ouray' },
+  }}
+>
+```
+
+---
+
+## Adding More Clients
+
+It's the same two steps every time:
+
+```bash
+# 1. Create their schema
+npx @bullfinch/cms init --schema cms_newclient --name "New Client Inc"
+
+# 2. Create their admin user (via Dashboard or script)
+```
+
+Then either:
+- **Separate app per client:** Clone your template app, change the `.env` to point at the new schema
+- **Single app, dynamic schema:** Use a subdomain or URL param to select the schema at runtime
+
+### Dynamic Schema Example
+
+```tsx
+// Determine schema from subdomain: basecamp.cms.bullfinch.io → cms_basecamp
+const subdomain = window.location.hostname.split('.')[0];
+const schema = `cms_${subdomain}`;
+
+const supabase = createClient(url, key, { db: { schema } });
+```
+
+---
+
+## Content Models
+
+Content models define the structure of your content. Instead of hardcoded "Pages" or "Posts" tables, everything is a model you define.
+
+### Example Models
+
+| Model | Use Case |
+|-------|----------|
+| `homepage` | Single homepage with hero, features, CTA sections |
+| `service_page` | Service pages with title, description, pricing |
+| `team_member` | Team bios with photo, name, role, bio |
+| `blog_post` | Blog with title, content, featured image, excerpt |
+| `testimonial` | Client quotes with name, company, text |
+| `faq` | FAQ items with question and answer |
+
+### Built-in Field Types
+
+| Type | Description | Example Use |
+|------|-------------|-------------|
+| `short_text` | Single-line text input | Titles, names, labels |
+| `long_text` | Multi-line textarea | Descriptions, excerpts |
+| `rich_text` | TipTap WYSIWYG editor | Body content, bios |
+| `number` | Numeric input | Prices, sort order |
+| `boolean` | Toggle switch | Featured flag, visibility |
+| `date` | Date picker | Publish date, event date |
+| `datetime` | Date + time picker | Event start times |
+| `media` | Image/file picker (opens media library) | Hero images, thumbnails |
+| `reference` | Link to another content entry | Related posts, parent page |
+| `array` | Repeatable group of sub-fields | Feature lists, gallery items |
+| `button` | Link with text + URL | CTAs, navigation links |
+| `select` | Dropdown with predefined choices | Categories, status |
+| `color` | Color picker | Theme colors |
+| `url` | URL input with validation | External links |
+| `email` | Email input with validation | Contact emails |
+| `slug` | URL-friendly identifier | Page slugs |
+| `json` | Raw JSON editor | Structured data, config |
+
+### Creating Models Programmatically
+
+You can create models via the admin UI, or directly via Supabase:
+
+```ts
+import { createContentModel } from '@bullfinch/cms';
+
+await createContentModel(supabase, {
+  name: 'Blog Post',
+  api_identifier: 'blog_post',
+  description: 'Blog articles',
+  icon: '📝',
+  fields: [
+    {
+      id: crypto.randomUUID(),
+      name: 'Excerpt',
+      api_identifier: 'excerpt',
+      field_type: 'long_text',
+      required: true,
+      options: { rows: 3, placeholder: 'Brief summary...' },
+    },
+    {
+      id: crypto.randomUUID(),
+      name: 'Body',
+      api_identifier: 'body',
+      field_type: 'rich_text',
+      required: true,
+    },
+    {
+      id: crypto.randomUUID(),
+      name: 'Featured Image',
+      api_identifier: 'featured_image',
+      field_type: 'media',
+    },
+    {
+      id: crypto.randomUUID(),
+      name: 'Published',
+      api_identifier: 'published',
+      field_type: 'boolean',
+      default_value: 'false',
+    },
+  ],
+  created_by: userId, // UUID of the creating user
+});
+```
+
+---
+
+## Configuration Reference
+
+### CMSProvider Props
+
+```tsx
+<CMSProvider
+  supabase={supabaseClient}  // Required: Supabase client with schema set
+  config={{                    // Optional: all fields below are optional
+    branding: { ... },
+    storage: storageAdapter,
+    hooks: { ... },
+    customFieldTypes: { ... },
+    sidebarItems: [ ... ],
+    basePath: '/admin',
+  }}
+>
+  <AdminPanel />
+</CMSProvider>
+```
+
+### Branding
+
+```tsx
+config={{
+  branding: {
+    businessName: 'Acme Corp',     // Shown in sidebar header + page title
+    logoUrl: '/logo.png',          // Sidebar logo (full width)
+    faviconUrl: '/favicon.ico',    // Browser tab icon
+    primaryColor: '#2563eb',       // Primary buttons, links, active states
+    accentColor: '#7c3aed',        // Secondary accent color
+  }
+}}
+```
+
+### Storage Adapters
+
+Two built-in adapters:
+
+```tsx
+import { createSupabaseStorageAdapter, createPresignedUrlStorageAdapter } from '@bullfinch/cms';
+
+// Supabase Storage
+createSupabaseStorageAdapter(supabase, 'bucket-name')
+
+// R2/S3 presigned URLs
+createPresignedUrlStorageAdapter({
+  getPresignedUrl: async (filename, contentType) => ({
+    presignedUrl: '...',
+    publicUrl: '...',
+    filename: '...',
+  }),
+})
+```
+
+Or implement your own:
+
+```tsx
+const myAdapter: StorageAdapter = {
+  async upload(file: File) {
+    // Upload file however you want
+    return { url: 'https://...', filename: 'uploaded-file.jpg' };
+  },
+  async delete(url: string) {
+    // Optional: delete from storage
+  },
+};
 ```
 
 ### Hooks
 
+Lifecycle hooks for custom logic:
+
 ```tsx
-<CMSProvider config={{
+config={{
   hooks: {
-    onBeforeSave: (entry) => ({ ...entry, fields: { ...entry.fields, updated: Date.now() } }),
-    onAfterSave: (entry) => console.log('Saved:', entry.id),
-    onBeforeDelete: (entry) => confirm('Sure?'),
+    // Modify entry before saving (return modified entry)
+    onBeforeSave: async (entry) => {
+      return { ...entry, fields: { ...entry.fields, lastEdited: new Date().toISOString() } };
+    },
+
+    // Run after successful save
+    onAfterSave: async (entry) => {
+      await fetch('/api/revalidate', { method: 'POST', body: JSON.stringify({ id: entry.id }) });
+    },
+
+    // Return false to cancel deletion
+    onBeforeDelete: async (entry) => {
+      return entry.status !== 'published'; // Prevent deleting published entries
+    },
+
+    // Run after successful deletion
+    onAfterDelete: async (entry) => {
+      console.log('Deleted:', entry.id);
+    },
+
+    // Run after media upload
+    onMediaUpload: async (file, mediaItem) => {
+      console.log('Uploaded:', mediaItem.url);
+    },
   }
-}}>
+}}
 ```
 
-### Custom field types
+### Custom Field Types
+
+Register custom field renderers:
 
 ```tsx
-<CMSProvider config={{
+function ColorPickerField({ field, value, onChange, disabled }) {
+  return (
+    <div>
+      <label>{field.name}</label>
+      <input
+        type="color"
+        value={(value as string) || '#000000'}
+        onChange={(e) => onChange(e.target.value)}
+        disabled={disabled}
+      />
+    </div>
+  );
+}
+
+// In config:
+config={{
   customFieldTypes: {
     color_picker: {
       type: 'color_picker',
       label: 'Color Picker',
-      component: MyColorPicker,
-    }
-  }
-}}>
+      component: ColorPickerField,
+    },
+  },
+}}
 ```
 
-### Custom storage adapter
+Then use `color_picker` as a field type when building content models.
+
+### Custom Sidebar Items
+
+Add extra pages to the admin sidebar:
 
 ```tsx
-<CMSProvider config={{
-  storage: {
-    async upload(file) {
-      // Upload to R2, S3, Cloudflare, wherever
-      return { url: 'https://...', filename: file.name };
+config={{
+  sidebarItems: [
+    {
+      id: 'analytics',
+      label: 'Analytics',
+      icon: <BarChart className="w-5 h-5" />,
+      path: '/analytics',
+      component: AnalyticsDashboard,
+      position: 'bottom', // 'top' (default) or 'bottom'
     },
-    async getPresignedUrl(filename, contentType) {
-      // For direct browser uploads
-      return { presignedUrl: '...', publicUrl: '...', filename };
-    }
-  }
-}}>
+  ],
+}}
 ```
 
-## What's Included
+---
 
-- **Content Models** — Define custom content types with a visual field builder
-- **Content Entries** — CRUD entries against any model, with draft/published/archived workflow
-- **Media Library** — Upload, browse, and manage files
-- **Rich Text Editor** — TipTap-based with images, tables, links, YouTube embeds
-- **SEO Panel** — Meta titles, descriptions, OG tags, structured data per entry
-- **User Management** — Admin/Editor/Viewer roles
-- **Branding** — Custom colors, logo, business name
-- **Multi-tenant** — Schema-based isolation, one Supabase project for all clients
+## Consuming Content (Frontend)
+
+The CMS stores content in Supabase. Your frontend reads it directly:
+
+```ts
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(url, anonKey, { db: { schema: 'cms_basecamp' } });
+
+// Fetch all published entries for a content model
+const { data: services } = await supabase
+  .from('content_entries')
+  .select('*, content_models!inner(api_identifier)')
+  .eq('content_models.api_identifier', 'service_page')
+  .eq('status', 'published')
+  .order('created_at', { ascending: false });
+
+// Each entry has:
+// - title: string
+// - fields: { hero_text: "...", price: 99, image: { url: "..." }, ... }
+// - seo: { metaTitle: "...", metaDescription: "..." }
+// - status: "published"
+// - published_at: "2026-03-05T..."
+```
+
+### With Astro (SSG)
+
+```astro
+---
+// src/pages/services/[slug].astro
+import { createClient } from '@supabase/supabase-js';
+
+const supabase = createClient(url, anonKey, { db: { schema: 'cms_basecamp' } });
+
+const { data: entries } = await supabase
+  .from('content_entries')
+  .select('*')
+  .eq('content_model_id', SERVICE_MODEL_ID)
+  .eq('status', 'published');
+
+const entry = entries?.find(e => e.fields.slug === Astro.params.slug);
+---
+
+<h1>{entry.title}</h1>
+<div set:html={entry.fields.body} />
+```
+
+### Fetching a Single Content Entry (e.g., Homepage)
+
+For singleton-style models (one entry per model):
+
+```ts
+// Get the model ID
+const { data: model } = await supabase
+  .from('content_models')
+  .select('id')
+  .eq('api_identifier', 'homepage')
+  .single();
+
+// Get the single entry
+const { data: homepage } = await supabase
+  .from('content_entries')
+  .select('*')
+  .eq('content_model_id', model.id)
+  .eq('status', 'published')
+  .single();
+
+// homepage.fields = { hero_title: "...", hero_image: { url: "..." }, ... }
+```
+
+---
+
+## User Roles
+
+| Role | Can View | Can Create/Edit | Can Delete | Can Manage Users | Can Edit Settings |
+|------|----------|-----------------|------------|------------------|-------------------|
+| **Admin** | ✅ | ✅ | ✅ | ✅ | ✅ |
+| **Editor** | ✅ | ✅ | Own only | ❌ | ❌ |
+| **Viewer** | ✅ | ❌ | ❌ | ❌ | ❌ |
+
+Users are created through Supabase Auth. The CMS auto-creates a user profile record when someone signs up (via database trigger). New users default to `Viewer` role. Admins can promote users through the Settings → User Management panel.
+
+---
+
+## Offboarding a Client
+
+When a client leaves your hosting:
+
+### 1. Export their data
+
+```bash
+npx @bullfinch/cms export --schema cms_basecamp --output ./basecamp-export.sql
+```
+
+This prints the `pg_dump` command. Run it:
+
+```bash
+pg_dump "postgresql://postgres:PASSWORD@db.xxxxx.supabase.co:5432/postgres" \
+  --schema=cms_basecamp \
+  --no-owner \
+  --no-privileges \
+  -f ./basecamp-export.sql
+```
+
+### 2. Hand them the export
+
+The SQL file contains everything — schema creation, table definitions, all data. They can import it into any Postgres database:
+
+```bash
+psql "postgresql://..." -f ./basecamp-export.sql
+```
+
+Or into a new Supabase project via the SQL Editor.
+
+### 3. Remove the schema
+
+```sql
+DROP SCHEMA cms_basecamp CASCADE;
+```
+
+Clean removal. No orphaned data.
+
+---
+
+## CLI Reference
+
+All commands require these environment variables:
+
+```bash
+export SUPABASE_URL="https://xxxxx.supabase.co"
+export SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJI..."
+```
+
+### `init` — Create a new client schema
+
+```bash
+npx @bullfinch/cms init --schema cms_acme --name "Acme Corp"
+```
+
+Creates the Postgres schema, all tables, RLS policies, indexes, triggers, and seeds default settings.
+
+### `migrate` — Run migrations on existing schema
+
+```bash
+npx @bullfinch/cms migrate --schema cms_acme
+```
+
+Applies any pending migrations. Safe to run multiple times (idempotent).
+
+### `export` — Generate export command for offboarding
+
+```bash
+npx @bullfinch/cms export --schema cms_acme --output ./backup.sql
+```
+
+Prints the `pg_dump` command to export the client's complete schema and data.
+
+---
+
+## Project Structure
+
+```
+@bullfinch/cms/
+├── src/
+│   ├── index.ts                    # Main exports
+│   ├── core/
+│   │   ├── types.ts                # All TypeScript types and interfaces
+│   │   ├── queries.ts              # Supabase CRUD operations
+│   │   ├── config.ts               # Settings load/save helpers
+│   │   ├── helpers.ts              # Content & validation helpers
+│   │   └── storage.ts              # Storage adapter implementations
+│   ├── components/
+│   │   ├── provider.tsx            # CMSProvider context + hooks (useCMS, useSupabase, useUser)
+│   │   ├── AdminPanel.tsx          # Main admin shell with routing
+│   │   ├── auth/
+│   │   │   └── Login.tsx           # Login form
+│   │   ├── layout/
+│   │   │   ├── MainLayout.tsx      # Shell with sidebar + content area
+│   │   │   └── Sidebar.tsx         # Dynamic sidebar (auto-lists content models)
+│   │   ├── content/
+│   │   │   ├── ContentModelsList.tsx       # List all content models
+│   │   │   ├── ContentModelEditor.tsx      # Create/edit a content model
+│   │   │   ├── ContentEntriesList.tsx      # List entries for a model
+│   │   │   ├── ContentEntryEditor.tsx      # Create/edit an entry
+│   │   │   ├── DynamicField.tsx            # Renders correct input per field type
+│   │   │   ├── FieldBuilder.tsx            # Visual field definition builder
+│   │   │   ├── FieldEditor.tsx             # Edit field properties
+│   │   │   ├── FieldTypeSelector.tsx       # Field type dropdown
+│   │   │   ├── ArrayField.tsx              # Repeatable field groups
+│   │   │   ├── ArrayItemFieldEditor.tsx    # Sub-field editor for arrays
+│   │   │   ├── ButtonField.tsx             # Button (text + URL) field
+│   │   │   ├── MediaPicker.tsx             # Inline media selection
+│   │   │   ├── ReferencePicker.tsx         # Content entry reference picker
+│   │   │   ├── JsonViewer.tsx              # Raw JSON display
+│   │   │   └── SchemaViewer.tsx            # Model schema display
+│   │   ├── media/
+│   │   │   ├── Media.tsx                   # Main media view
+│   │   │   ├── MediaLibrary.tsx            # Grid with search/filter
+│   │   │   ├── MediaUpload.tsx             # Upload component
+│   │   │   └── MediaCard.tsx               # Individual media item
+│   │   ├── settings/
+│   │   │   ├── Settings.tsx                # Branding & site settings
+│   │   │   ├── UserManagement.tsx          # User list & management
+│   │   │   ├── UserEditor.tsx              # Edit user details
+│   │   │   └── ChangePassword.tsx          # Password change form
+│   │   └── common/
+│   │       ├── ConfirmationModal.tsx       # "Are you sure?" modal
+│   │       ├── Dropdown.tsx                # Custom dropdown component
+│   │       ├── RichTextEditor.tsx          # TipTap WYSIWYG editor
+│   │       ├── SEOPanel.tsx                # SEO metadata editor
+│   │       └── Toast.tsx                   # Toast notifications
+│   ├── schema/
+│   │   └── migrations/
+│   │       └── 001_initial.sql             # Base schema (multi-tenant)
+│   └── cli/
+│       └── index.ts                        # CLI entry point
+├── package.json
+├── tsconfig.json
+├── vite.config.ts                          # Vite library mode build
+└── README.md
+```
+
+---
+
+## Development
+
+### Building the package
+
+```bash
+git clone https://github.com/eczzz/bullfinch-cms.git
+cd bullfinch-cms
+npm install
+npm run build
+```
+
+### Linking for local development
+
+```bash
+# In the CMS package directory
+npm link
+
+# In your client app directory
+npm link @bullfinch/cms
+```
+
+### Watch mode
+
+```bash
+npm run dev  # Rebuilds on file changes
+```
+
+---
+
+## Troubleshooting
+
+### "exec_sql function does not exist"
+
+The CLI needs a helper function to run DDL. Create it once:
+
+```sql
+CREATE OR REPLACE FUNCTION exec_sql(query text)
+RETURNS void AS $$
+BEGIN EXECUTE query; END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+```
+
+### "relation does not exist" errors
+
+Make sure your Supabase client is created with the correct schema:
+
+```ts
+const supabase = createClient(url, key, {
+  db: { schema: 'cms_basecamp' }  // Must match the schema you initialized
+});
+```
+
+### RLS policy errors / "permission denied"
+
+- Make sure the user exists in the schema's `users` table
+- Check their role (Admin required for some operations)
+- The auth trigger should auto-create user records, but if it didn't:
+  ```sql
+  INSERT INTO cms_basecamp.users (id, email, role)
+  VALUES ('auth-user-uuid', 'user@example.com', 'Admin');
+  ```
+
+### Tailwind classes not applying to CMS components
+
+Add the CMS package to your Tailwind content paths:
+
+```js
+// tailwind.config.js
+content: [
+  './src/**/*.{js,ts,jsx,tsx}',
+  './node_modules/@bullfinch/cms/dist/**/*.{js,ts,jsx,tsx}',
+],
+```
+
+### Media uploads failing
+
+- **Supabase Storage:** Make sure the bucket exists and is set to public
+- **R2/S3:** Verify your presigned URL endpoint is returning the correct format: `{ presignedUrl, publicUrl, filename }`
+- Check browser console for CORS errors — your storage provider may need CORS configured
+
+### Multiple schemas sharing auth triggers
+
+Each schema creates its own `on_auth_user_created_SCHEMA_NAME` trigger. This means when a new Supabase Auth user signs up, a user record is created in **every** client schema. This is usually fine (the record is harmless), but if you want per-client user isolation, create users via the admin panel instead of self-signup.
+
+---
 
 ## License
 
