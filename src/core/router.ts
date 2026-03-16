@@ -1,11 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { CMSRoute } from './types';
 
-// ─── Hash → Route parsing ───────────────────────────────────────────────────
+// ─── Path → Route parsing ───────────────────────────────────────────────────
 
-function parseHash(hash: string): CMSRoute {
-  // Strip leading #
-  const raw = hash.replace(/^#\/?/, '').replace(/\/$/, '');
+function parsePath(pathname: string): CMSRoute {
+  const raw = pathname.replace(/^\//, '').replace(/\/$/, '');
   const parts = raw.split('/').filter(Boolean);
 
   // Default / empty → content-models
@@ -32,6 +31,8 @@ function parseHash(hash: string): CMSRoute {
   // /settings routes
   if (parts[0] === 'settings') {
     if (parts.length === 1) return { page: 'settings' };
+    if (parts[1] === 'branding') return { page: 'settings' };
+    if (parts[1] === 'integrations') return { page: 'settings' };
     if (parts[1] === 'users') return { page: 'users' };
     if (parts[1] === 'password') return { page: 'change-password' };
   }
@@ -45,60 +46,61 @@ function parseHash(hash: string): CMSRoute {
   return { page: 'content-models' };
 }
 
-// ─── Route → Hash path ──────────────────────────────────────────────────────
+// ─── Route → Path ───────────────────────────────────────────────────────────
 
 export function routeToPath(route: CMSRoute): string {
   switch (route.page) {
     case 'content-models':
-      return '#/models';
+      return '/models';
     case 'content-model-editor':
-      return route.id ? `#/models/${route.id}` : '#/models/new';
+      return route.id ? `/models/${route.id}` : '/models/new';
     case 'content-entries':
-      return `#/models/${route.modelId}/entries`;
+      return `/models/${route.modelId}/entries`;
     case 'content-entry-editor':
       return route.entryId
-        ? `#/models/${route.modelId}/entries/${route.entryId}`
-        : `#/models/${route.modelId}/entries/new`;
+        ? `/models/${route.modelId}/entries/${route.entryId}`
+        : `/models/${route.modelId}/entries/new`;
     case 'media':
-      return '#/media';
+      return '/media';
     case 'settings':
-      return '#/settings';
+      return '/settings';
     case 'users':
-      return '#/settings/users';
+      return '/settings/users';
     case 'change-password':
-      return '#/settings/password';
+      return '/settings/password';
     case 'custom':
-      return `#/custom/${route.path}`;
+      return `/custom/${route.path}`;
     default:
-      return '#/models';
+      return '/models';
   }
 }
 
 // ─── Standalone navigate ────────────────────────────────────────────────────
 
 export function navigate(path: string): void {
-  window.location.hash = path.startsWith('#') ? path : `#${path}`;
+  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  history.pushState({}, '', cleanPath);
+  window.dispatchEvent(new PopStateEvent('popstate'));
 }
 
 // ─── React hook ─────────────────────────────────────────────────────────────
 
 export function useRouter(): { route: CMSRoute; navigate: (path: string) => void } {
   const [route, setRoute] = useState<CMSRoute>(() => {
-    const hash = window.location.hash;
-    if (!hash || hash === '#' || hash === '#/') {
-      // Redirect to default
-      window.location.hash = '#/models';
+    const pathname = window.location.pathname;
+    if (!pathname || pathname === '/') {
+      history.replaceState({}, '', '/models');
       return { page: 'content-models' };
     }
-    return parseHash(hash);
+    return parsePath(pathname);
   });
 
   useEffect(() => {
-    const onHashChange = () => {
-      setRoute(parseHash(window.location.hash));
+    const onPopState = () => {
+      setRoute(parsePath(window.location.pathname));
     };
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   const nav = useCallback((path: string) => {

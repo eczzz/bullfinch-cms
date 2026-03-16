@@ -86,7 +86,7 @@ export function ContentModelsList() {
           <p className="text-sm text-gray-500 mt-1">Define the structure of your content</p>
         </div>
         <button
-          onClick={() => navigate('#/models/new')}
+          onClick={() => navigate('/models/new')}
           className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
         >
           <Plus className="w-4 h-4" /> New Model
@@ -104,7 +104,7 @@ export function ContentModelsList() {
             Content models define the structure of your content. Create your first one to get started.
           </p>
           <button
-            onClick={() => navigate('#/models/new')}
+            onClick={() => navigate('/models/new')}
             className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
           >
             <Plus className="w-4 h-4" /> Create First Model
@@ -117,7 +117,7 @@ export function ContentModelsList() {
             <div
               key={model.id}
               className="bg-white rounded-lg shadow-sm ring-1 ring-gray-200 hover:shadow-md hover:ring-gray-300 transition-all cursor-pointer group"
-              onClick={() => navigate(`#/models/${model.id}`)}
+              onClick={() => navigate(`/models/${model.id}`)}
             >
               <div className="p-5">
                 <div className="flex items-start justify-between mb-3">
@@ -129,7 +129,7 @@ export function ContentModelsList() {
                     onClick={(e) => e.stopPropagation()}
                   >
                     <button
-                      onClick={() => navigate(`#/models/${model.id}`)}
+                      onClick={() => navigate(`/models/${model.id}`)}
                       className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
                       title="Edit model"
                     >

@@ -140,10 +140,13 @@ export interface SEOData {
 
 export interface BrandingConfig {
   businessName: string;
+  iconUrl?: string;
   logoUrl?: string;
   faviconUrl?: string;
   primaryColor?: string;
   accentColor?: string;
+  sidebarBg?: string;
+  sidebarText?: string;
 }
 
 // ─── Storage Adapter ────────────────────────────────────────────────────────
@@ -205,11 +208,13 @@ export interface CMSHooks {
 export interface CMSContextValue {
   supabase: SupabaseClient;
   config: CMSConfig;
+  branding: BrandingConfig;
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
+  refreshBranding: () => Promise<void>;
 }
 
 // ─── Route State ────────────────────────────────────────────────────────────

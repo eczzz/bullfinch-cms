@@ -149,7 +149,7 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
         if (config.hooks?.onAfterSave) await config.hooks.onAfterSave(saved);
         setHasUnsavedChanges(false);
         setToast({ type: 'success', title: 'Entry created' });
-        navigate(`#/models/${modelId}/entries/${saved.id}`);
+        navigate(`/models/${modelId}/entries/${saved.id}`);
       }
     } catch (err: any) {
       setToast({ type: 'error', title: 'Save failed', message: err.message });
@@ -216,7 +216,7 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
           </div>
           <p className="text-sm text-gray-500">Content model not found.</p>
           <button
-            onClick={() => navigate('#/models')}
+            onClick={() => navigate('/models')}
             className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium"
           >
             Back to models
@@ -239,11 +239,11 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
         <div className="max-w-7xl mx-auto px-6 py-3">
           {/* Breadcrumb */}
           <nav className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
-            <button onClick={() => navigate('#/models')} className="hover:text-gray-600 transition-colors">
+            <button onClick={() => navigate('/models')} className="hover:text-gray-600 transition-colors">
               Content Models
             </button>
             <ChevronRight className="w-3 h-3" />
-            <button onClick={() => navigate(`#/models/${modelId}/entries`)} className="hover:text-gray-600 transition-colors">
+            <button onClick={() => navigate(`/models/${modelId}/entries`)} className="hover:text-gray-600 transition-colors">
               {model.name}
             </button>
             <ChevronRight className="w-3 h-3" />
@@ -254,7 +254,7 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button
-                onClick={() => navigate(`#/models/${modelId}/entries`)}
+                onClick={() => navigate(`/models/${modelId}/entries`)}
                 className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 ring-1 ring-gray-200 transition-all"
               >
                 <ArrowLeft className="w-4 h-4" />

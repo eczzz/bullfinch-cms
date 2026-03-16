@@ -186,7 +186,7 @@ async function cmdInit(flags: Record<string, string | true>): Promise<void> {
       console.log('\n-- Then run the migration:');
       console.log(sql);
       console.log(`\n-- Seed business name:`);
-      console.log(`INSERT INTO ${schema}.settings (key, value) VALUES ('branding_business_name', '${name.replace(/'/g, "''")}') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`);
+      console.log(`INSERT INTO ${schema}.settings (key, value) VALUES ('site_name', '${name.replace(/'/g, "''")}') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`);
     } else {
       die(`Migration failed: ${error.message}`);
     }
@@ -194,7 +194,7 @@ async function cmdInit(flags: Record<string, string | true>): Promise<void> {
   }
 
   const { error: seedError } = await supabase.rpc('exec_sql', {
-    query: `INSERT INTO ${schema}.settings (key, value) VALUES ('branding_business_name', '${name.replace(/'/g, "''")}') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`,
+    query: `INSERT INTO ${schema}.settings (key, value) VALUES ('site_name', '${name.replace(/'/g, "''")}') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`,
   });
 
   if (seedError) {

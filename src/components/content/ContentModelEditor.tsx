@@ -129,7 +129,7 @@ export function ContentModelEditor({ modelId }: ContentModelEditorProps) {
         await createContentModel(supabase, modelData);
       }
       setToast({ type: 'success', title: modelId ? 'Model updated' : 'Model created' });
-      setTimeout(() => navigate('#/models'), 1000);
+      setTimeout(() => navigate('/models'), 1000);
     } catch (err: any) {
       setToast({ type: 'error', title: 'Save failed', message: err.message });
     } finally {
@@ -142,7 +142,7 @@ export function ContentModelEditor({ modelId }: ContentModelEditorProps) {
     try {
       await deleteContentModel(supabase, modelId);
       setToast({ type: 'success', title: 'Model deleted' });
-      setTimeout(() => navigate('#/models'), 500);
+      setTimeout(() => navigate('/models'), 500);
     } catch (err: any) {
       setToast({ type: 'error', title: 'Delete failed', message: err.message });
     }
@@ -174,7 +174,7 @@ export function ContentModelEditor({ modelId }: ContentModelEditorProps) {
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-sm">
         <button
-          onClick={() => navigate('#/models')}
+          onClick={() => navigate('/models')}
           className="text-gray-400 hover:text-gray-600 transition-all"
         >
           Content Models
@@ -187,7 +187,7 @@ export function ContentModelEditor({ modelId }: ContentModelEditorProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate('#/models')}
+            onClick={() => navigate('/models')}
             className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 ring-1 ring-gray-200 transition-all"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -285,7 +285,7 @@ export function ContentModelEditor({ modelId }: ContentModelEditorProps) {
             {modelId && (
               <div className="pt-2 border-t border-gray-100">
                 <button
-                  onClick={() => navigate(`#/models/${modelId}/entries`)}
+                  onClick={() => navigate(`/models/${modelId}/entries`)}
                   className="text-sm text-blue-600 hover:text-blue-700 font-medium transition-all"
                 >
                   View Entries →
