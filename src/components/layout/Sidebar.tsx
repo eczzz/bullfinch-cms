@@ -56,7 +56,7 @@ export function Sidebar({ currentRoute }: SidebarProps) {
           className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-150 ${
             !collapsed && branding.logoUrl ? 'w-0 h-0 opacity-0' : 'opacity-100'
           }`}
-          style={{ backgroundColor: primaryColor }}
+          style={branding.iconUrl ? undefined : { backgroundColor: primaryColor }}
         >
           {branding.iconUrl ? (
             <img src={branding.iconUrl} alt="Icon" className="w-full h-full object-contain" />
