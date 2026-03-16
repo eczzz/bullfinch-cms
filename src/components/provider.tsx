@@ -66,7 +66,6 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
       if (map.branding_accent_color) dbBranding.accentColor = map.branding_accent_color;
       if (map.branding_sidebar_bg) dbBranding.sidebarBg = map.branding_sidebar_bg;
       if (map.branding_sidebar_text) dbBranding.sidebarText = map.branding_sidebar_text;
-      if (map.branding_business_name) dbBranding.businessName = map.branding_business_name;
       if (map.site_name) dbBranding.businessName = map.site_name;
 
       const merged: BrandingConfig = {
