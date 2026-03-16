@@ -102,7 +102,7 @@ CREATE TABLE IF NOT EXISTS SCHEMA_NAME.content_models (
   description text DEFAULT '',
   icon text DEFAULT '📄',
   fields jsonb NOT NULL DEFAULT '[]',
-  created_by uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -128,7 +128,7 @@ CREATE TABLE IF NOT EXISTS SCHEMA_NAME.content_entries (
   seo jsonb DEFAULT NULL,
   status text DEFAULT 'draft' CHECK (status IN ('draft', 'published', 'archived')),
   published_at timestamptz,
-  created_by uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  created_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at timestamptz DEFAULT now(),
   updated_at timestamptz DEFAULT now()
 );
@@ -153,7 +153,7 @@ CREATE TABLE IF NOT EXISTS SCHEMA_NAME.media (
   url text NOT NULL,
   mime_type text NOT NULL,
   size integer DEFAULT 0,
-  uploaded_by uuid REFERENCES auth.users(id) ON DELETE CASCADE,
+  uploaded_by uuid REFERENCES auth.users(id) ON DELETE SET NULL,
   created_at timestamptz DEFAULT now()
 );
 
