@@ -133,6 +133,20 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
   // Resolve the model ID for navigation (entry row click, new entry, etc.)
   const getEntryModelId = (entry: ContentEntry) => entry.content_model_id;
   const activeModelId = selectedModelId || '';
+  const [showCreatePicker, setShowCreatePicker] = useState(false);
+  const createBtnRef = React.useRef<HTMLDivElement>(null);
+
+  // Close create picker on outside click
+  useEffect(() => {
+    if (!showCreatePicker) return;
+    const handler = (e: MouseEvent) => {
+      if (createBtnRef.current && !createBtnRef.current.contains(e.target as Node)) {
+        setShowCreatePicker(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, [showCreatePicker]);
 
   if (loading) {
     return (
@@ -168,25 +182,40 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
             {selectedModel ? selectedModel.description || `Manage ${selectedModel.name} entries` : 'Manage all content entries'}
           </p>
         </div>
-        <button
-          onClick={() => {
-            if (activeModelId) {
-              navigate(`/models/${activeModelId}/entries/new`);
-            } else if (models.length === 1) {
-              navigate(`/models/${models[0].id}/entries/new`);
-            } else {
-              // If no model selected and multiple exist, select the first one then create
-              const firstModel = models[0];
-              if (firstModel) {
-                setSelectedModelId(firstModel.id);
-                navigate(`/models/${firstModel.id}/entries/new`);
+        <div className="relative" ref={createBtnRef}>
+          <button
+            onClick={() => {
+              if (activeModelId) {
+                navigate(`/models/${activeModelId}/entries/new`);
+              } else if (models.length === 1) {
+                navigate(`/models/${models[0].id}/entries/new`);
+              } else {
+                setShowCreatePicker((v) => !v);
               }
-            }
-          }}
-          className="inline-flex items-center gap-2 cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
-        >
-          <Plus className="w-4 h-4" /> Create
-        </button>
+            }}
+            className="inline-flex items-center gap-2 cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
+          >
+            <Plus className="w-4 h-4" /> Create
+          </button>
+          {showCreatePicker && (
+            <div className="absolute right-0 top-full mt-1.5 w-56 bg-white rounded-lg shadow-lg ring-1 ring-gray-200 py-1.5 z-30 animate-in fade-in slide-in-from-top-1">
+              <p className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Select model</p>
+              {models.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    setShowCreatePicker(false);
+                    navigate(`/models/${m.id}/entries/new`);
+                  }}
+                  className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 hover:text-gray-900 transition-colors flex items-center gap-2"
+                >
+                  <span>{m.icon || '📄'}</span>
+                  {m.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Filter bar */}
