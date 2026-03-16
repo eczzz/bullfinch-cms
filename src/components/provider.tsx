@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { CMSConfig, CMSContextValue, User } from '../core/types';
+import type { CMSConfig, CMSContextValue, BrandingConfig, User } from '../core/types';
 import { fetchCurrentUser } from '../core/queries';
 
 const CMSContext = createContext<CMSContextValue | null>(null);
@@ -19,6 +19,20 @@ export function useUser(): User | null {
   return useCMS().user;
 }
 
+const DEFAULT_BRANDING: BrandingConfig = {
+  businessName: 'CMS',
+};
+
+function applyFavicon(url: string) {
+  let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
+  if (!link) {
+    link = document.createElement('link');
+    link.rel = 'icon';
+    document.head.appendChild(link);
+  }
+  link.href = url;
+}
+
 interface CMSProviderProps {
   supabase: SupabaseClient;
   config?: CMSConfig;
@@ -29,6 +43,47 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [branding, setBranding] = useState<BrandingConfig>({
+    ...DEFAULT_BRANDING,
+    ...config.branding,
+  });
+
+  const loadBranding = useCallback(async () => {
+    try {
+      const { data, error } = await supabase.from('settings').select('*');
+      if (error) throw error;
+
+      const map: Record<string, string> = {};
+      data?.forEach((s: any) => {
+        map[s.key] = s.value;
+      });
+
+      const dbBranding: Partial<BrandingConfig> = {};
+      if (map.branding_icon) dbBranding.iconUrl = map.branding_icon;
+      if (map.branding_favicon) dbBranding.faviconUrl = map.branding_favicon;
+      if (map.branding_logo) dbBranding.logoUrl = map.branding_logo;
+      if (map.branding_primary_color) dbBranding.primaryColor = map.branding_primary_color;
+      if (map.branding_accent_color) dbBranding.accentColor = map.branding_accent_color;
+      if (map.branding_sidebar_bg) dbBranding.sidebarBg = map.branding_sidebar_bg;
+      if (map.branding_sidebar_text) dbBranding.sidebarText = map.branding_sidebar_text;
+      if (map.branding_business_name) dbBranding.businessName = map.branding_business_name;
+      if (map.site_name) dbBranding.businessName = map.site_name;
+
+      const merged: BrandingConfig = {
+        ...DEFAULT_BRANDING,
+        ...config.branding,
+        ...dbBranding,
+      };
+
+      setBranding(merged);
+
+      if (merged.faviconUrl) {
+        applyFavicon(merged.faviconUrl);
+      }
+    } catch (err) {
+      console.error('Error loading branding settings:', err);
+    }
+  }, [supabase, config.branding]);
 
   const loadUser = useCallback(async () => {
     try {
@@ -37,6 +92,7 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
         const u = await fetchCurrentUser(supabase);
         setUser(u);
         setIsAuthenticated(true);
+        await loadBranding();
       } else {
         setUser(null);
         setIsAuthenticated(false);
@@ -47,7 +103,7 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
     } finally {
       setIsLoading(false);
     }
-  }, [supabase]);
+  }, [supabase, loadBranding]);
 
   useEffect(() => {
     loadUser();
@@ -79,11 +135,13 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
   const value: CMSContextValue = {
     supabase,
     config,
+    branding,
     user,
     isAuthenticated,
     isLoading,
     login,
     logout,
+    refreshBranding: loadBranding,
   };
 
   return <CMSContext.Provider value={value}>{children}</CMSContext.Provider>;

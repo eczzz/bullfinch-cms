@@ -122,14 +122,14 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
       {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-sm">
         <button
-          onClick={() => navigate('#/models')}
+          onClick={() => navigate('/models')}
           className="text-gray-400 hover:text-gray-600 transition-all"
         >
           Content Models
         </button>
         <span className="text-gray-300">›</span>
         <button
-          onClick={() => navigate(`#/models/${modelId}`)}
+          onClick={() => navigate(`/models/${modelId}`)}
           className="text-gray-400 hover:text-gray-600 transition-all"
         >
           {model?.name || 'Model'}
@@ -149,7 +149,7 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
           </p>
         </div>
         <button
-          onClick={() => navigate(`#/models/${modelId}/entries/new`)}
+          onClick={() => navigate(`/models/${modelId}/entries/new`)}
           className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
         >
           <Plus className="w-4 h-4" /> New Entry
@@ -196,7 +196,7 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
           </p>
           {entries.length === 0 && (
             <button
-              onClick={() => navigate(`#/models/${modelId}/entries/new`)}
+              onClick={() => navigate(`/models/${modelId}/entries/new`)}
               className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
             >
               <Plus className="w-4 h-4" /> Create First Entry
@@ -227,7 +227,7 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
                 <tr
                   key={entry.id}
                   className="hover:bg-gray-50 transition-colors cursor-pointer group"
-                  onClick={() => navigate(`#/models/${modelId}/entries/${entry.id}`)}
+                  onClick={() => navigate(`/models/${modelId}/entries/${entry.id}`)}
                 >
                   <td className="px-5 py-3">
                     <p className="text-sm font-medium text-gray-900">{truncate(entry.title, 60)}</p>
@@ -244,7 +244,7 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
                   <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
                     <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
                       <button
-                        onClick={() => navigate(`#/models/${modelId}/entries/${entry.id}`)}
+                        onClick={() => navigate(`/models/${modelId}/entries/${entry.id}`)}
                         className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
                         title="Edit"
                       >

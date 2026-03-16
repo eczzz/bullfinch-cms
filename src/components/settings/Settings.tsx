@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Save, User, Lock, Users, Palette, Plug, Eye, EyeOff } from 'lucide-react';
-import { useSupabase } from '../provider';
+import { useCMS, useSupabase } from '../provider';
 import { navigate } from '../../core/router';
 import { ChangePassword } from './ChangePassword';
 import { UserManagement } from './UserManagement';
@@ -8,18 +8,19 @@ import { Toast } from '../common/Toast';
 
 type SettingsTab = 'general' | 'branding' | 'integrations' | 'users' | 'password';
 
-function getTabFromHash(): SettingsTab {
-  const hash = window.location.hash;
-  if (hash.includes('/settings/branding')) return 'branding';
-  if (hash.includes('/settings/integrations')) return 'integrations';
-  if (hash.includes('/settings/users')) return 'users';
-  if (hash.includes('/settings/password')) return 'password';
+function getTabFromPath(): SettingsTab {
+  const pathname = window.location.pathname;
+  if (pathname.includes('/settings/branding')) return 'branding';
+  if (pathname.includes('/settings/integrations')) return 'integrations';
+  if (pathname.includes('/settings/users')) return 'users';
+  if (pathname.includes('/settings/password')) return 'password';
   return 'general';
 }
 
 export function Settings() {
   const supabase = useSupabase();
-  const [activeTab, setActiveTab] = useState<SettingsTab>(getTabFromHash);
+  const { refreshBranding } = useCMS();
+  const [activeTab, setActiveTab] = useState<SettingsTab>(getTabFromPath);
   const [settings, setSettings] = useState<Record<string, string>>({
     site_name: '',
     site_description: '',
@@ -46,11 +47,11 @@ export function Settings() {
   const [showSecretKey, setShowSecretKey] = useState(false);
   const [triggeringBuild, setTriggeringBuild] = useState(false);
 
-  // Listen for hash changes to sync tab
+  // Listen for popstate to sync tab
   useEffect(() => {
-    const onHashChange = () => setActiveTab(getTabFromHash());
-    window.addEventListener('hashchange', onHashChange);
-    return () => window.removeEventListener('hashchange', onHashChange);
+    const onPopState = () => setActiveTab(getTabFromPath());
+    window.addEventListener('popstate', onPopState);
+    return () => window.removeEventListener('popstate', onPopState);
   }, []);
 
   useEffect(() => {
@@ -82,6 +83,7 @@ export function Settings() {
           .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
         if (error) throw error;
       }
+      await refreshBranding();
       setToast({ type: 'success', title: 'Settings saved' });
     } catch (err: any) {
       setToast({ type: 'error', title: 'Save failed', message: err.message });
@@ -109,11 +111,11 @@ export function Settings() {
   };
 
   const handleTabClick = (tab: SettingsTab) => {
-    if (tab === 'general') navigate('#/settings');
-    else if (tab === 'branding') navigate('#/settings/branding');
-    else if (tab === 'integrations') navigate('#/settings/integrations');
-    else if (tab === 'users') navigate('#/settings/users');
-    else if (tab === 'password') navigate('#/settings/password');
+    if (tab === 'general') navigate('/settings');
+    else if (tab === 'branding') navigate('/settings/branding');
+    else if (tab === 'integrations') navigate('/settings/integrations');
+    else if (tab === 'users') navigate('/settings/users');
+    else if (tab === 'password') navigate('/settings/password');
   };
 
   const tabs: Array<{ id: SettingsTab; label: string; icon: typeof User }> = [
