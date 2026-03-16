@@ -178,7 +178,7 @@ export function MediaUpload({ onUploadComplete }: MediaUploadProps) {
                 {u.status === 'uploading' && (
                   <div className="mt-1.5 h-1 bg-gray-100 rounded-full overflow-hidden">
                     <div
-                      className="h-full bg-blue-600 rounded-full transition-all"
+                      className="h-full cms-accent-bg rounded-full transition-all"
                       style={{ width: `${u.progress}%` }}
                     />
                   </div>

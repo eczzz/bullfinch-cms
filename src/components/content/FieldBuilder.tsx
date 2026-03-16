@@ -66,7 +66,7 @@ export function FieldBuilder({ fields, onChange, allModels = [] }: FieldBuilderP
         <h3 className="text-sm font-semibold text-gray-900">Fields</h3>
         <button
           onClick={() => setShowTypeSelector(true)}
-          className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm transition-all"
+          className="inline-flex items-center gap-1.5 cms-btn-accent text-white rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm transition-all"
         >
           <Plus className="w-3 h-3" /> Add Field
         </button>
@@ -80,7 +80,7 @@ export function FieldBuilder({ fields, onChange, allModels = [] }: FieldBuilderP
           <p className="text-sm text-gray-500 mb-3">No fields defined yet</p>
           <button
             onClick={() => setShowTypeSelector(true)}
-            className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm transition-all"
+            className="inline-flex items-center gap-1.5 cms-btn-accent text-white rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm transition-all"
           >
             <Plus className="w-3.5 h-3.5" /> Add First Field
           </button>

@@ -156,7 +156,7 @@ export function RichTextEditor({
             <button
               type="button"
               onClick={toggleHtmlMode}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all duration-150"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium cms-btn-accent text-white rounded-lg shadow-sm transition-all duration-150"
             >
               <Code className="w-3.5 h-3.5" /> Visual
             </button>
