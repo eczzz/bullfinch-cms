@@ -222,6 +222,7 @@ export interface CMSContextValue {
 export type CMSRoute =
   | { page: 'content-models' }
   | { page: 'content-model-editor'; id?: string }
+  | { page: 'entries'; modelId?: string }
   | { page: 'content-entries'; modelId: string }
   | { page: 'content-entry-editor'; modelId: string; entryId?: string }
   | { page: 'media' }

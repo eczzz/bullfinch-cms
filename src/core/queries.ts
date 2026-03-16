@@ -86,6 +86,17 @@ export async function fetchContentEntries(
   return data || [];
 }
 
+export async function fetchAllContentEntries(
+  supabase: SupabaseClient
+): Promise<ContentEntry[]> {
+  const { data, error } = await supabase
+    .from('content_entries')
+    .select('*')
+    .order('updated_at', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
 export async function fetchContentEntry(
   supabase: SupabaseClient,
   id: string

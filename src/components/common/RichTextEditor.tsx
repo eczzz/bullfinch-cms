@@ -27,6 +27,8 @@ import {
   Type, Plus, Trash2, ArrowUp, ArrowDown, ArrowLeft, ArrowRight,
 } from 'lucide-react';
 import { useCMS } from '../provider';
+import { PromptModal } from './PromptModal';
+import { Toast } from './Toast';
 
 interface RichTextEditorProps {
   value: string;
@@ -64,6 +66,14 @@ export function RichTextEditor({
   const [openDropdown, setOpenDropdown] = useState<string | null>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const isSettingContent = useRef(false);
+  const [toast, setToast] = useState<{ type: 'success' | 'error'; title: string; message?: string } | null>(null);
+  const [promptModal, setPromptModal] = useState<{
+    title: string;
+    message?: string;
+    defaultValue?: string;
+    placeholder?: string;
+    onConfirm: (value: string) => void;
+  } | null>(null);
 
   const editor = useEditor({
     extensions: [
@@ -105,11 +115,17 @@ export function RichTextEditor({
         editor.chain().focus().setImage({ src: url, alt: file.name }).run();
       } catch (err) {
         console.error('Image upload failed:', err);
-        alert('Failed to upload image');
+        setToast({ type: 'error', title: 'Failed to upload image' });
       }
     } else {
-      const url = prompt('Enter image URL:');
-      if (url) editor.chain().focus().setImage({ src: url, alt: '' }).run();
+      setPromptModal({
+        title: 'Insert Image',
+        placeholder: 'https://example.com/image.png',
+        onConfirm: (url) => {
+          if (url) editor.chain().focus().setImage({ src: url, alt: '' }).run();
+          setPromptModal(null);
+        },
+      });
     }
     if (imageInputRef.current) imageInputRef.current.value = '';
   }, [editor, config.storage]);
@@ -117,16 +133,32 @@ export function RichTextEditor({
   const handleSetLink = useCallback(() => {
     if (!editor) return;
     const prev = editor.getAttributes('link').href || '';
-    const url = prompt('Enter URL:', prev);
-    if (url === null) return;
-    if (url === '') { editor.chain().focus().extendMarkRange('link').unsetLink().run(); return; }
-    editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+    setPromptModal({
+      title: 'Set Link',
+      message: 'Leave empty to remove the link.',
+      defaultValue: prev,
+      placeholder: 'https://example.com',
+      onConfirm: (url) => {
+        if (url === '') {
+          editor.chain().focus().extendMarkRange('link').unsetLink().run();
+        } else {
+          editor.chain().focus().extendMarkRange('link').setLink({ href: url }).run();
+        }
+        setPromptModal(null);
+      },
+    });
   }, [editor]);
 
   const handleYouTubeEmbed = useCallback(() => {
     if (!editor) return;
-    const url = prompt('Enter YouTube URL:');
-    if (url) editor.commands.setYoutubeVideo({ src: url, width: 640, height: 360 });
+    setPromptModal({
+      title: 'Embed YouTube Video',
+      placeholder: 'https://youtube.com/watch?v=...',
+      onConfirm: (url) => {
+        if (url) editor.commands.setYoutubeVideo({ src: url, width: 640, height: 360 });
+        setPromptModal(null);
+      },
+    });
   }, [editor]);
 
   const toggleHtmlMode = useCallback(() => {
@@ -305,6 +337,18 @@ export function RichTextEditor({
       </div>
 
       <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+
+      <PromptModal
+        isOpen={!!promptModal}
+        title={promptModal?.title || ''}
+        message={promptModal?.message}
+        defaultValue={promptModal?.defaultValue || ''}
+        placeholder={promptModal?.placeholder || ''}
+        onConfirm={(val) => promptModal?.onConfirm(val)}
+        onCancel={() => setPromptModal(null)}
+      />
+
+      {toast && <Toast {...toast} onClose={() => setToast(null)} />}
     </div>
   );
 }

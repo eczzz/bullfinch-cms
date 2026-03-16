@@ -1,20 +1,23 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Eye, FileText, Search, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Plus, Pencil, Trash2, Eye, FileText, Search } from 'lucide-react';
 import { useSupabase } from '../provider';
 import {
   fetchContentEntries,
+  fetchAllContentEntries,
+  fetchContentModels,
   fetchContentModel,
   deleteContentEntry,
   updateEntryStatus,
 } from '../../core/queries';
 import { ConfirmationModal } from '../common/ConfirmationModal';
+import { Dropdown } from '../common/Dropdown';
 import { Toast } from '../common/Toast';
 import { navigate } from '../../core/router';
 import type { ContentModel, ContentEntry, EntryStatus } from '../../core/types';
 import { formatDateTime, truncate } from '../../core/helpers';
 
 interface ContentEntriesListProps {
-  modelId: string;
+  modelId?: string;
 }
 
 const PAGE_SIZE = 20;
@@ -33,7 +36,9 @@ const STATUS_DOT_CLASSES: Record<EntryStatus, string> = {
 
 export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
   const supabase = useSupabase();
-  const [model, setModel] = useState<ContentModel | null>(null);
+  const [models, setModels] = useState<ContentModel[]>([]);
+  const [selectedModelId, setSelectedModelId] = useState<string>(modelId || '');
+  const [selectedModel, setSelectedModel] = useState<ContentModel | null>(null);
   const [entries, setEntries] = useState<ContentEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -42,14 +47,33 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
   const [deleteTarget, setDeleteTarget] = useState<ContentEntry | null>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; title: string; message?: string } | null>(null);
 
-  const loadData = async () => {
+  // Load all models for the dropdown
+  useEffect(() => {
+    fetchContentModels(supabase).then(setModels).catch(console.error);
+  }, [supabase]);
+
+  // Build a model lookup map
+  const modelMap = React.useMemo(() => {
+    const map: Record<string, ContentModel> = {};
+    models.forEach((m) => { map[m.id] = m; });
+    return map;
+  }, [models]);
+
+  const loadEntries = async () => {
+    setLoading(true);
     try {
-      const [m, e] = await Promise.all([
-        fetchContentModel(supabase, modelId),
-        fetchContentEntries(supabase, modelId),
-      ]);
-      setModel(m);
-      setEntries(e);
+      if (selectedModelId) {
+        const [m, e] = await Promise.all([
+          fetchContentModel(supabase, selectedModelId),
+          fetchContentEntries(supabase, selectedModelId),
+        ]);
+        setSelectedModel(m);
+        setEntries(e);
+      } else {
+        setSelectedModel(null);
+        const e = await fetchAllContentEntries(supabase);
+        setEntries(e);
+      }
     } catch (err) {
       console.error('Error loading entries:', err);
     } finally {
@@ -57,7 +81,16 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
     }
   };
 
-  useEffect(() => { loadData(); }, [modelId]);
+  useEffect(() => { loadEntries(); }, [selectedModelId]);
+
+  // Sync URL when model changes
+  useEffect(() => {
+    if (modelId !== undefined) return; // only for unified view
+    const path = selectedModelId ? `/entries/${selectedModelId}` : '/entries';
+    if (window.location.pathname !== path) {
+      history.replaceState({}, '', path);
+    }
+  }, [selectedModelId, modelId]);
 
   const handleDelete = async () => {
     if (!deleteTarget) return;
@@ -65,7 +98,7 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
       await deleteContentEntry(supabase, deleteTarget.id);
       setDeleteTarget(null);
       setToast({ type: 'success', title: 'Entry deleted' });
-      loadData();
+      loadEntries();
     } catch (err: any) {
       setToast({ type: 'error', title: 'Delete failed', message: err.message });
     }
@@ -74,10 +107,15 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
   const handleStatusChange = async (entry: ContentEntry, status: EntryStatus) => {
     try {
       await updateEntryStatus(supabase, entry.id, status);
-      loadData();
+      loadEntries();
     } catch (err: any) {
       setToast({ type: 'error', title: 'Status update failed', message: err.message });
     }
+  };
+
+  const handleModelChange = (newModelId: string) => {
+    setSelectedModelId(newModelId);
+    setPage(1);
   };
 
   const filtered = entries.filter((e) => {
@@ -92,11 +130,14 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
   // Reset page when filters change
   useEffect(() => { setPage(1); }, [search, statusFilter]);
 
+  // Resolve the model ID for navigation (entry row click, new entry, etc.)
+  const getEntryModelId = (entry: ContentEntry) => entry.content_model_id;
+  const activeModelId = selectedModelId || '';
+
   if (loading) {
     return (
       <div className="p-8 max-w-7xl mx-auto space-y-6">
         <div className="space-y-2">
-          <div className="h-4 w-40 bg-gray-200 rounded animate-pulse" />
           <div className="h-7 w-48 bg-gray-200 rounded-lg animate-pulse" />
         </div>
         <div className="bg-white rounded-lg shadow-sm ring-1 ring-gray-200 overflow-hidden">
@@ -119,45 +160,48 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
 
   return (
     <div className="p-8 max-w-7xl mx-auto space-y-6">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-1.5 text-sm">
-        <button
-          onClick={() => navigate('/models')}
-          className="text-gray-400 hover:text-gray-600 transition-all"
-        >
-          Content Models
-        </button>
-        <span className="text-gray-300">›</span>
-        <button
-          onClick={() => navigate(`/models/${modelId}`)}
-          className="text-gray-400 hover:text-gray-600 transition-all"
-        >
-          {model?.name || 'Model'}
-        </button>
-        <span className="text-gray-300">›</span>
-        <span className="text-gray-900 font-medium">Entries</span>
-      </nav>
-
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-gray-900">
-            {model?.name || 'Entries'}
-          </h1>
+          <h1 className="text-2xl font-semibold text-gray-900">Entries</h1>
           <p className="text-sm text-gray-500 mt-1">
-            {model?.description || 'Manage content entries'}
+            {selectedModel ? selectedModel.description || `Manage ${selectedModel.name} entries` : 'Manage all content entries'}
           </p>
         </div>
         <button
-          onClick={() => navigate(`/models/${modelId}/entries/new`)}
+          onClick={() => {
+            if (activeModelId) {
+              navigate(`/models/${activeModelId}/entries/new`);
+            } else if (models.length === 1) {
+              navigate(`/models/${models[0].id}/entries/new`);
+            } else {
+              // If no model selected and multiple exist, select the first one then create
+              const firstModel = models[0];
+              if (firstModel) {
+                setSelectedModelId(firstModel.id);
+                navigate(`/models/${firstModel.id}/entries/new`);
+              }
+            }
+          }}
           className="inline-flex items-center gap-2 cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
         >
-          <Plus className="w-4 h-4" /> New Entry
+          <Plus className="w-4 h-4" /> Create
         </button>
       </div>
 
       {/* Filter bar */}
       <div className="flex items-center gap-3">
+        {/* Content model dropdown */}
+        <Dropdown
+          value={selectedModelId}
+          onChange={handleModelChange}
+          options={[
+            { value: '', label: 'All Content Models' },
+            ...models.map((m) => ({ value: m.id, label: m.name })),
+          ]}
+          className="w-48"
+        />
+
         <div className="relative flex-1 max-w-sm">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
@@ -168,16 +212,18 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
             className="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
           />
         </div>
-        <select
+
+        <Dropdown
           value={statusFilter}
-          onChange={(e) => setStatusFilter(e.target.value as EntryStatus | 'all')}
-          className="border border-gray-200 rounded-lg px-3 py-2 text-sm bg-white text-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
-        >
-          <option value="all">All Statuses</option>
-          <option value="draft">Draft</option>
-          <option value="published">Published</option>
-          <option value="archived">Archived</option>
-        </select>
+          onChange={(v) => setStatusFilter(v as EntryStatus | 'all')}
+          options={[
+            { value: 'all', label: 'All Statuses' },
+            { value: 'draft', label: 'Draft' },
+            { value: 'published', label: 'Published' },
+            { value: 'archived', label: 'Archived' },
+          ]}
+          className="w-36"
+        />
       </div>
 
       {/* Table or empty state */}
@@ -191,12 +237,14 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
           </h3>
           <p className="text-sm text-gray-500 mb-6">
             {entries.length === 0
-              ? 'Create your first entry to start adding content.'
+              ? activeModelId
+                ? 'Create your first entry to start adding content.'
+                : 'Select a content model and create your first entry.'
               : 'Try adjusting your search or filter criteria.'}
           </p>
-          {entries.length === 0 && (
+          {entries.length === 0 && activeModelId && (
             <button
-              onClick={() => navigate(`/models/${modelId}/entries/new`)}
+              onClick={() => navigate(`/models/${activeModelId}/entries/new`)}
               className="inline-flex items-center gap-2 cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
             >
               <Plus className="w-4 h-4" /> Create First Entry
@@ -211,6 +259,11 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
                 <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                   Title
                 </th>
+                {!selectedModelId && (
+                  <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                    Model
+                  </th>
+                )}
                 <th className="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
                   Status
                 </th>
@@ -223,53 +276,71 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {paginated.map((entry) => (
-                <tr
-                  key={entry.id}
-                  className="hover:bg-gray-50 transition-colors cursor-pointer group"
-                  onClick={() => navigate(`/models/${modelId}/entries/${entry.id}`)}
-                >
-                  <td className="px-5 py-3">
-                    <p className="text-sm font-medium text-gray-900">{truncate(entry.title, 60)}</p>
-                  </td>
-                  <td className="px-5 py-3">
-                    <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_BADGE_CLASSES[entry.status]}`}>
-                      <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT_CLASSES[entry.status]}`} />
-                      {entry.status.charAt(0).toUpperCase() + entry.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-xs text-gray-500">
-                    {formatDateTime(entry.updated_at)}
-                  </td>
-                  <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
-                    <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
-                      <button
-                        onClick={() => navigate(`/models/${modelId}/entries/${entry.id}`)}
-                        className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
-                        title="Edit"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
-                      {entry.status === 'draft' && (
+              {paginated.map((entry) => {
+                const entryModelId = getEntryModelId(entry);
+                const entryModel = modelMap[entryModelId];
+                return (
+                  <tr
+                    key={entry.id}
+                    className="hover:bg-gray-50 transition-colors cursor-pointer group"
+                    onClick={() => navigate(`/models/${entryModelId}/entries/${entry.id}`)}
+                  >
+                    <td className="px-5 py-3">
+                      <p className="text-sm font-medium text-gray-900">{truncate(entry.title, 60)}</p>
+                    </td>
+                    {!selectedModelId && (
+                      <td className="px-5 py-3">
+                        <span className="inline-flex items-center gap-1.5 text-xs text-gray-500">
+                          {entryModel ? (
+                            <>
+                              <span>{entryModel.icon || '📄'}</span>
+                              {entryModel.name}
+                            </>
+                          ) : (
+                            <span className="italic text-gray-400">Unknown</span>
+                          )}
+                        </span>
+                      </td>
+                    )}
+                    <td className="px-5 py-3">
+                      <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${STATUS_BADGE_CLASSES[entry.status]}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${STATUS_DOT_CLASSES[entry.status]}`} />
+                        {entry.status.charAt(0).toUpperCase() + entry.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-xs text-gray-500">
+                      {formatDateTime(entry.updated_at)}
+                    </td>
+                    <td className="px-5 py-3" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-all">
                         <button
-                          onClick={() => handleStatusChange(entry, 'published')}
-                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
-                          title="Publish"
+                          onClick={() => navigate(`/models/${entryModelId}/entries/${entry.id}`)}
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-blue-600 hover:bg-blue-50 transition-all"
+                          title="Edit"
                         >
-                          <Eye className="w-3.5 h-3.5" />
+                          <Pencil className="w-3.5 h-3.5" />
                         </button>
-                      )}
-                      <button
-                        onClick={() => setDeleteTarget(entry)}
-                        className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
-                        title="Delete"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        {entry.status === 'draft' && (
+                          <button
+                            onClick={() => handleStatusChange(entry, 'published')}
+                            className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-emerald-600 hover:bg-emerald-50 transition-all"
+                            title="Publish"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        <button
+                          onClick={() => setDeleteTarget(entry)}
+                          className="inline-flex items-center justify-center w-7 h-7 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
 
@@ -293,7 +364,7 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
                     onClick={() => setPage(p)}
                     className={`px-2.5 py-1 text-xs font-medium rounded-md transition-all ${
                       page === p
-                        ? 'bg-blue-50 text-blue-700 ring-1 ring-blue-200/50'
+                        ? 'cms-accent-bg text-white ring-1 ring-blue-200/50'
                         : 'text-gray-600 hover:bg-gray-50'
                     }`}
                   >

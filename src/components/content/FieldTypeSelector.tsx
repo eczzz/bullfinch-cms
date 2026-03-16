@@ -1,5 +1,6 @@
 import React from 'react';
 import { Type, Hash, Calendar, Image, Link, ToggleLeft, List, Code, Mail, Palette, Tag, MousePointer, Layers, Globe, FileText } from 'lucide-react';
+import { Dropdown } from '../common/Dropdown';
 import type { FieldType } from '../../core/types';
 
 // ─── Type definitions with categories ───────────────────────────────────────
@@ -69,17 +70,15 @@ export function FieldTypeSelector(props: FieldTypeSelectorProps) {
   // Dropdown mode (inline in FieldEditor)
   if ('value' in props && props.value !== undefined) {
     return (
-      <select
+      <Dropdown
         value={props.value}
-        onChange={(e) => props.onChange!(e.target.value as FieldType)}
-        className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
-      >
-        {FIELD_TYPE_OPTIONS.map((opt) => (
-          <option key={opt.value} value={opt.value}>
-            {opt.label} — {opt.description}
-          </option>
-        ))}
-      </select>
+        onChange={(v) => props.onChange!(v as FieldType)}
+        options={FIELD_TYPE_OPTIONS.map((opt) => ({
+          value: opt.value,
+          label: `${opt.label} — ${opt.description}`,
+        }))}
+        className="w-full"
+      />
     );
   }
 

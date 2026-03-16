@@ -38,6 +38,9 @@ export function AdminPanel() {
       case 'content-model-editor':
         return <ContentModelEditor modelId={route.id} />;
 
+      case 'entries':
+        return <ContentEntriesList modelId={route.modelId} />;
+
       case 'content-entries':
         return <ContentEntriesList modelId={route.modelId} />;
 
