@@ -88,10 +88,6 @@ export function Settings() {
           .upsert({ key, value, updated_at: new Date().toISOString() }, { onConflict: 'key' });
         if (error) throw error;
       }
-      // Clean up legacy site_name row if branding_business_name is set
-      if (settings.branding_business_name) {
-        await supabase.from('settings').delete().eq('key', 'site_name');
-      }
       await refreshBranding();
       setToast({ type: 'success', title: 'Settings saved' });
     } catch (err: any) {
