@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Trash2, ChevronDown, ChevronRight, GripVertical } from 'lucide-react';
 import { FieldTypeSelector } from './FieldTypeSelector';
 import { ArrayItemFieldEditor } from './ArrayItemFieldEditor';
+import { Dropdown } from '../common/Dropdown';
 import type { FieldDefinition, FieldType, FieldOptions } from '../../core/types';
 import { generateApiIdentifier } from '../../core/helpers';
 
@@ -100,16 +101,15 @@ export function FieldEditor({ field, onChange, onRemove, allModels = [] }: Field
           {field.field_type === 'reference' && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Reference Model</label>
-              <select
+              <Dropdown
                 value={field.options?.reference_model_id || ''}
-                onChange={(e) => updateOptions({ reference_model_id: e.target.value })}
-                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
-              >
-                <option value="">Select model…</option>
-                {allModels.map((m) => (
-                  <option key={m.id} value={m.id}>{m.name}</option>
-                ))}
-              </select>
+                onChange={(v) => updateOptions({ reference_model_id: v })}
+                options={[
+                  { value: '', label: 'Select model…' },
+                  ...allModels.map((m) => ({ value: m.id, label: m.name })),
+                ]}
+                className="w-full"
+              />
             </div>
           )}
 

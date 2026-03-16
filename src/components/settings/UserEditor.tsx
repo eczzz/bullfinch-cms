@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { X, Save, Trash2, Shield, Pencil, Eye } from 'lucide-react';
 import { useSupabase } from '../provider';
 import { updateUser } from '../../core/queries';
+import { ConfirmationModal } from '../common/ConfirmationModal';
 import type { User, UserRole } from '../../core/types';
 
 interface UserEditorProps {
@@ -101,12 +102,15 @@ export function UserEditor({ user, isOpen, onClose, onSave }: UserEditorProps) {
     }
   };
 
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+
   const handleDelete = async () => {
-    if (!user || !confirm('Delete this user?')) return;
+    if (!user) return;
     setSaving(true);
     try {
       const { error } = await supabase.from('users').delete().eq('id', user.id);
       if (error) throw error;
+      setShowDeleteConfirm(false);
       onSave();
     } catch (err: any) {
       setError(err.message || 'Delete failed');
@@ -247,7 +251,7 @@ export function UserEditor({ user, isOpen, onClose, onSave }: UserEditorProps) {
           <div>
             {user && (
               <button
-                onClick={handleDelete}
+                onClick={() => setShowDeleteConfirm(true)}
                 disabled={saving}
                 className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg px-3 py-2 text-sm font-medium transition-all disabled:opacity-50"
               >
@@ -283,6 +287,15 @@ export function UserEditor({ user, isOpen, onClose, onSave }: UserEditorProps) {
           </div>
         </div>
       </div>
+
+      <ConfirmationModal
+        isOpen={showDeleteConfirm}
+        title="Delete User"
+        message={`Are you sure you want to delete ${firstName || email || 'this user'}? This cannot be undone.`}
+        confirmLabel="Delete"
+        onConfirm={handleDelete}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

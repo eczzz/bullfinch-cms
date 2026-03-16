@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import {
-  Settings, LogOut, Images, Database, File, ChevronDown, ChevronRight, Feather,
+  Settings, LogOut, Images, Database, File, Feather,
 } from 'lucide-react';
 import { useCMS, useSupabase } from '../provider';
 import { fetchContentModels } from '../../core/queries';
@@ -22,7 +22,6 @@ export function Sidebar({ currentRoute }: SidebarProps) {
   const supabase = useSupabase();
   const { user, logout, config, branding } = useCMS();
   const [collapsed, setCollapsed] = useState(true);
-  const [contentExpanded, setContentExpanded] = useState(true);
   const [models, setModels] = useState<ContentModel[]>([]);
 
   useEffect(() => {
@@ -35,9 +34,7 @@ export function Sidebar({ currentRoute }: SidebarProps) {
   const accentColor = branding.accentColor || DEFAULTS.accentColor;
 
   const isActive = (page: string) => currentRoute.page === page;
-  const isModelActive = (modelId: string) =>
-    (currentRoute.page === 'content-entries' && currentRoute.modelId === modelId) ||
-    (currentRoute.page === 'content-entry-editor' && currentRoute.modelId === modelId);
+  const isEntriesActive = currentRoute.page === 'entries' || currentRoute.page === 'content-entries' || currentRoute.page === 'content-entry-editor';
 
   return (
     <div
@@ -85,7 +82,7 @@ export function Sidebar({ currentRoute }: SidebarProps) {
         {/* Content Models link */}
         <NavLink
           href={routeToPath({ page: 'content-models' })}
-          active={isActive('content-models')}
+          active={isActive('content-models') || isActive('content-model-editor')}
           icon={Database}
           label="Content Models"
           collapsed={collapsed}
@@ -94,47 +91,17 @@ export function Sidebar({ currentRoute }: SidebarProps) {
           sidebarBg={sidebarBg}
         />
 
-        {/* Collapsible content models list */}
-        <button
-          onClick={() => setContentExpanded(!contentExpanded)}
-          className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all duration-150"
-          style={{ color: sidebarText }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = `${sidebarText}15`;
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent';
-          }}
-        >
-          <File className="w-4 h-4 flex-shrink-0" />
-          <span className={`flex-1 text-left whitespace-nowrap transition-opacity duration-150 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
-            Entries
-          </span>
-          {!collapsed && (
-            contentExpanded
-              ? <ChevronDown className="w-3 h-3" />
-              : <ChevronRight className="w-3 h-3" />
-          )}
-        </button>
-
-        {contentExpanded && !collapsed && (
-          <div className="space-y-0.5">
-            {models.map((m) => (
-              <NavLink
-                key={m.id}
-                href={routeToPath({ page: 'content-entries', modelId: m.id })}
-                active={isModelActive(m.id)}
-                icon={File}
-                label={m.name}
-                collapsed={collapsed}
-                accentColor={accentColor}
-                textColor={sidebarText}
-                sidebarBg={sidebarBg}
-                sub
-              />
-            ))}
-          </div>
-        )}
+        {/* Entries link */}
+        <NavLink
+          href="/entries"
+          active={isEntriesActive}
+          icon={File}
+          label="Entries"
+          collapsed={collapsed}
+          accentColor={accentColor}
+          textColor={sidebarText}
+          sidebarBg={sidebarBg}
+        />
 
         {/* Media */}
         <NavLink

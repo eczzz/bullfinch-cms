@@ -25,6 +25,12 @@ function parsePath(pathname: string): CMSRoute {
     }
   }
 
+  // /entries — unified entries view with optional model filter
+  if (parts[0] === 'entries') {
+    if (parts.length === 1) return { page: 'entries' };
+    return { page: 'entries', modelId: parts[1] };
+  }
+
   // /media
   if (parts[0] === 'media') return { page: 'media' };
 
@@ -54,6 +60,8 @@ export function routeToPath(route: CMSRoute): string {
       return '/models';
     case 'content-model-editor':
       return route.id ? `/models/${route.id}` : '/models/new';
+    case 'entries':
+      return route.modelId ? `/entries/${route.modelId}` : '/entries';
     case 'content-entries':
       return `/models/${route.modelId}/entries`;
     case 'content-entry-editor':

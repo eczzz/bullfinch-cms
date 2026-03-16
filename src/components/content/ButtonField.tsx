@@ -1,5 +1,6 @@
 import React from 'react';
 import { ExternalLink } from 'lucide-react';
+import { Dropdown } from '../common/Dropdown';
 
 interface ButtonFieldValue {
   text: string;
@@ -73,15 +74,11 @@ export function ButtonField({ value, onChange }: ButtonFieldProps) {
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Style</label>
-          <select
+          <Dropdown
             value={buttonStyle}
-            onChange={(e) => update({ style: e.target.value as ButtonFieldValue['style'] })}
-            className={inputClass}
-          >
-            {STYLE_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
-          </select>
+            onChange={(v) => update({ style: v as ButtonFieldValue['style'] })}
+            options={STYLE_OPTIONS}
+          />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Open in new tab</label>
