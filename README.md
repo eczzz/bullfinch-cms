@@ -436,13 +436,18 @@ await createContentModel(supabase, {
 config={{
   branding: {
     businessName: 'Acme Corp',     // Shown in sidebar header + page title
-    logoUrl: '/logo.png',          // Sidebar logo (full width)
+    logoUrl: '/logo.png',          // Sidebar logo (centered when expanded)
+    iconUrl: '/icon.png',          // Sidebar icon (shown when collapsed)
     faviconUrl: '/favicon.ico',    // Browser tab icon
-    primaryColor: '#2563eb',       // Primary buttons, links, active states
-    accentColor: '#7c3aed',        // Secondary accent color
+    primaryColor: '#2563eb',       // Default icon background color
+    accentColor: '#7c3aed',        // Buttons, active nav states, toggles, tabs
+    sidebarBg: '#111827',          // Sidebar background color
+    sidebarText: '#ffffff',        // Sidebar text color (full opacity)
   }
 }}
 ```
+
+> **Note:** Branding can also be configured from the Settings → Branding panel in the UI. Database settings override config props. The accent color drives all interactive elements: buttons, active sidebar items, settings tabs, toggles, and selection indicators.
 
 ### Storage Adapters
 
@@ -868,7 +873,8 @@ npx @bullfinch/cms entries publish --schema cms_newclient --id <entry-uuid> --js
 │   │       └── Toast.tsx                   # Toast notifications
 │   ├── schema/
 │   │   └── migrations/
-│   │       └── 001_initial.sql             # Base schema (multi-tenant)
+│   │       ├── 001_initial.sql             # Base schema (multi-tenant)
+│   │       └── 002_fix_cascade_deletes.sql # Fix FK cascades (SET NULL)
 │   └── cli/
 │       └── index.ts                        # CLI entry point
 ├── package.json
