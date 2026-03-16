@@ -66,7 +66,9 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
       if (map.branding_accent_color) dbBranding.accentColor = map.branding_accent_color;
       if (map.branding_sidebar_bg) dbBranding.sidebarBg = map.branding_sidebar_bg;
       if (map.branding_sidebar_text) dbBranding.sidebarText = map.branding_sidebar_text;
-      if (map.site_name) dbBranding.businessName = map.site_name;
+      if (map.branding_business_name) dbBranding.businessName = map.branding_business_name;
+      // Legacy fallback: migrate site_name → branding_business_name
+      else if (map.site_name) dbBranding.businessName = map.site_name;
 
       const merged: BrandingConfig = {
         ...DEFAULT_BRANDING,
@@ -100,7 +102,6 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
         const u = await fetchCurrentUser(supabase);
         setUser(u);
         setIsAuthenticated(true);
-        await loadBranding();
       } else {
         setUser(null);
         setIsAuthenticated(false);
@@ -111,7 +112,12 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
     } finally {
       setIsLoading(false);
     }
-  }, [supabase, loadBranding]);
+  }, [supabase]);
+
+  // Load branding immediately (before auth) so the login page gets it too
+  useEffect(() => {
+    loadBranding();
+  }, [loadBranding]);
 
   useEffect(() => {
     loadUser();

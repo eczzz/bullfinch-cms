@@ -22,11 +22,11 @@ export function Settings() {
   const { refreshBranding } = useCMS();
   const [activeTab, setActiveTab] = useState<SettingsTab>(getTabFromPath);
   const [settings, setSettings] = useState<Record<string, string>>({
-    site_name: '',
     site_description: '',
     contact_email: '',
     contact_phone: '',
     address: '',
+    branding_business_name: '',
     branding_icon: '',
     branding_favicon: '',
     branding_logo: '',
@@ -66,6 +66,11 @@ export function Settings() {
       data?.forEach((s: any) => {
         map[s.key] = s.value;
       });
+      // Migrate legacy site_name → branding_business_name
+      if (map.site_name && !map.branding_business_name) {
+        map.branding_business_name = map.site_name;
+      }
+      delete map.site_name;
       setSettings((prev) => ({ ...prev, ...map }));
     } catch (err) {
       console.error('Error loading settings:', err);
@@ -166,16 +171,6 @@ export function Settings() {
             </div>
             <div className="p-6 space-y-5">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1.5">Business Name</label>
-                <input
-                  type="text"
-                  value={settings.site_name || ''}
-                  onChange={(e) => setSettings((p) => ({ ...p, site_name: e.target.value }))}
-                  placeholder="Your business name"
-                  className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
-                />
-              </div>
-              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
                 <textarea
                   value={settings.site_description || ''}
@@ -255,6 +250,23 @@ export function Settings() {
 
       {activeTab === 'branding' && (
         <div className="space-y-6">
+          {/* Business Name card */}
+          <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
+            <div className="px-6 py-4 border-b border-gray-100">
+              <h2 className="text-sm font-semibold text-gray-900">Business Name</h2>
+              <p className="text-xs text-gray-500 mt-0.5">Shown on the login page, sidebar, and browser title</p>
+            </div>
+            <div className="p-6">
+              <input
+                type="text"
+                value={settings.branding_business_name || ''}
+                onChange={(e) => setSettings((p) => ({ ...p, branding_business_name: e.target.value }))}
+                placeholder="Your business name"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+              />
+            </div>
+          </div>
+
           {/* Logo & Icons card */}
           <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 overflow-hidden">
             <div className="px-6 py-4 border-b border-gray-100">
