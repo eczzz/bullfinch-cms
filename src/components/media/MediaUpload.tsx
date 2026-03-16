@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Upload, X } from 'lucide-react';
+import { Upload, X, CheckCircle, AlertCircle } from 'lucide-react';
 import { useCMS } from '../provider';
 import { createMediaRecord } from '../../core/queries';
 import { validateFile, formatFileSize } from '../../core/helpers';
@@ -37,11 +37,13 @@ export function MediaUpload({ onUploadComplete }: MediaUploadProps) {
 
       const validation = validateFile(file);
       if (!validation.valid) {
-        setUploads((prev) => prev.map((u, j) => j === idx ? { ...u, status: 'error', error: validation.error } : u));
+        setUploads((prev) =>
+          prev.map((u, j) => (j === idx ? { ...u, status: 'error', error: validation.error } : u))
+        );
         continue;
       }
 
-      setUploads((prev) => prev.map((u, j) => j === idx ? { ...u, status: 'uploading' } : u));
+      setUploads((prev) => prev.map((u, j) => (j === idx ? { ...u, status: 'uploading' } : u)));
 
       try {
         let url: string;
@@ -52,7 +54,6 @@ export function MediaUpload({ onUploadComplete }: MediaUploadProps) {
           url = result.url;
           filename = result.filename;
         } else {
-          // Fallback to Supabase storage
           const ext = file.name.split('.').pop() || 'bin';
           filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
           const path = `uploads/${filename}`;
@@ -71,12 +72,24 @@ export function MediaUpload({ onUploadComplete }: MediaUploadProps) {
         });
 
         if (config.hooks?.onMediaUpload) {
-          await config.hooks.onMediaUpload(file, { id: '', filename: file.name, url, mime_type: file.type, size: file.size, uploaded_by: user?.id || '', created_at: '' });
+          await config.hooks.onMediaUpload(file, {
+            id: '',
+            filename: file.name,
+            url,
+            mime_type: file.type,
+            size: file.size,
+            uploaded_by: user?.id || '',
+            created_at: '',
+          });
         }
 
-        setUploads((prev) => prev.map((u, j) => j === idx ? { ...u, status: 'success', progress: 100 } : u));
+        setUploads((prev) =>
+          prev.map((u, j) => (j === idx ? { ...u, status: 'success', progress: 100 } : u))
+        );
       } catch (err: any) {
-        setUploads((prev) => prev.map((u, j) => j === idx ? { ...u, status: 'error', error: err.message } : u));
+        setUploads((prev) =>
+          prev.map((u, j) => (j === idx ? { ...u, status: 'error', error: err.message } : u))
+        );
       }
     }
 
@@ -88,46 +101,94 @@ export function MediaUpload({ onUploadComplete }: MediaUploadProps) {
   };
 
   return (
-    <div className="bcms-space-y-4">
+    <div className="space-y-4">
+      {/* Drop zone */}
       <div
-        className={`bcms-border-2 bcms-border-dashed bcms-rounded-lg bcms-p-8 bcms-text-center bcms-transition ${
-          isDragging ? 'bcms-border-blue-500 bcms-bg-blue-50' : 'bcms-border-gray-300 bcms-bg-gray-50 hover:bcms-border-blue-400'
+        className={`border-2 border-dashed rounded-lg p-10 text-center transition-all cursor-pointer ${
+          isDragging
+            ? 'border-blue-500 bg-blue-50'
+            : 'border-gray-300 bg-white hover:border-gray-400'
         }`}
-        onDragEnter={(e) => { e.preventDefault(); setIsDragging(true); }}
-        onDragLeave={(e) => { e.preventDefault(); setIsDragging(false); }}
+        onDragEnter={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
+        onDragLeave={(e) => {
+          e.preventDefault();
+          setIsDragging(false);
+        }}
         onDragOver={(e) => e.preventDefault()}
         onDrop={handleDrop}
+        onClick={() => fileInputRef.current?.click()}
       >
-        <Upload className="bcms-w-8 bcms-h-8 bcms-text-gray-400 bcms-mx-auto bcms-mb-3" />
-        <p className="bcms-text-sm bcms-font-medium bcms-text-gray-700 bcms-mb-1">Drag files here to upload</p>
-        <p className="bcms-text-xs bcms-text-gray-400 bcms-mb-4">or click to browse (max 50MB)</p>
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="bcms-bg-blue-600 bcms-text-white bcms-py-2 bcms-px-4 bcms-text-sm bcms-font-semibold bcms-rounded-lg hover:bcms-bg-blue-700 bcms-transition"
+        <div
+          className={`w-10 h-10 rounded-lg flex items-center justify-center mx-auto mb-3 ${
+            isDragging ? 'bg-blue-100' : 'bg-gray-100'
+          }`}
         >
-          Select Files
-        </button>
+          <Upload className={`w-5 h-5 ${isDragging ? 'text-blue-600' : 'text-gray-400'}`} />
+        </div>
+        <p className="text-sm font-medium text-gray-700 mb-1">
+          {isDragging ? 'Drop files here' : 'Drag & drop files or click to browse'}
+        </p>
+        <p className="text-xs text-gray-400">Maximum file size: 50MB</p>
         <input
           ref={fileInputRef}
           type="file"
           multiple
-          onChange={(e) => { processFiles(Array.from(e.target.files || [])); if (fileInputRef.current) fileInputRef.current.value = ''; }}
-          className="bcms-hidden"
+          onChange={(e) => {
+            processFiles(Array.from(e.target.files || []));
+            if (fileInputRef.current) fileInputRef.current.value = '';
+          }}
+          className="hidden"
         />
       </div>
 
+      {/* Upload items */}
       {uploads.length > 0 && (
-        <div className="bcms-space-y-2">
+        <div className="space-y-2">
           {uploads.map((u, i) => (
-            <div key={i} className="bcms-flex bcms-items-center bcms-gap-3 bcms-p-3 bcms-border bcms-border-gray-200 bcms-rounded-lg bcms-bg-white">
-              <div className="bcms-flex-1 bcms-min-w-0">
-                <p className="bcms-text-sm bcms-font-medium bcms-text-gray-900 bcms-truncate">{u.file.name}</p>
-                <p className="bcms-text-xs bcms-text-gray-400">{formatFileSize(u.file.size)}</p>
-                {u.status === 'error' && <p className="bcms-text-xs bcms-text-red-500">{u.error}</p>}
-                {u.status === 'success' && <p className="bcms-text-xs bcms-text-green-500">✓ Uploaded</p>}
+            <div
+              key={i}
+              className={`flex items-center gap-3 p-3 rounded-lg bg-white ring-1 transition-all ${
+                u.status === 'error' ? 'ring-red-200' : 'ring-gray-200'
+              }`}
+            >
+              <div className="flex-shrink-0">
+                {u.status === 'success' && (
+                  <div className="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-600" />
+                  </div>
+                )}
+                {u.status === 'error' && (
+                  <div className="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center">
+                    <AlertCircle className="w-3.5 h-3.5 text-red-600" />
+                  </div>
+                )}
+                {(u.status === 'pending' || u.status === 'uploading') && (
+                  <div className="w-6 h-6 flex items-center justify-center">
+                    <div className="w-4 h-4 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
+                  </div>
+                )}
               </div>
-              <button onClick={() => removeItem(i)} className="bcms-p-1 bcms-text-gray-400 hover:bcms-text-gray-600">
-                <X className="bcms-w-4 bcms-h-4" />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-900 truncate">{u.file.name}</p>
+                <p className="text-xs text-gray-400">{formatFileSize(u.file.size)}</p>
+                {u.status === 'error' && <p className="text-xs text-red-600 mt-0.5">{u.error}</p>}
+                {u.status === 'uploading' && (
+                  <div className="mt-1.5 h-1 bg-gray-100 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-blue-600 rounded-full transition-all"
+                      style={{ width: `${u.progress}%` }}
+                    />
+                  </div>
+                )}
+              </div>
+              <button
+                onClick={() => removeItem(i)}
+                className="p-1 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
+              >
+                <X className="w-4 h-4" />
               </button>
             </div>
           ))}

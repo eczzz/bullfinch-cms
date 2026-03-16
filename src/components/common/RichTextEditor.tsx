@@ -44,9 +44,11 @@ function ToolbarButton({ onClick, isActive = false, disabled = false, title, chi
   return (
     <button
       type="button" onClick={onClick} disabled={disabled} title={title}
-      className={`bcms-p-1.5 bcms-rounded bcms-transition ${
-        isActive ? 'bcms-bg-blue-100 bcms-text-blue-600' : 'bcms-text-gray-500 hover:bcms-bg-gray-100 hover:bcms-text-gray-700'
-      } ${disabled ? 'bcms-opacity-40 bcms-cursor-not-allowed' : 'bcms-cursor-pointer'}`}
+      className={`p-1.5 rounded transition-all duration-150 ${
+        isActive
+          ? 'bg-gray-200 text-blue-600'
+          : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'
+      } ${disabled ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'}`}
     >
       {children}
     </button>
@@ -70,10 +72,10 @@ export function RichTextEditor({
       Color, Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
       Link.configure({ openOnClick: false }),
-      Image.configure({ HTMLAttributes: { class: 'bcms-rounded-lg bcms-max-w-full bcms-h-auto' } }),
+      Image.configure({ HTMLAttributes: { class: 'rounded-lg max-w-full h-auto' } }),
       Table.configure({ resizable: true }),
       TableRow, TableHeader, TableCell,
-      Youtube.configure({ HTMLAttributes: { class: 'bcms-rounded-lg bcms-overflow-hidden' } }),
+      Youtube.configure({ HTMLAttributes: { class: 'rounded-lg overflow-hidden' } }),
       Placeholder.configure({ placeholder }),
       CharacterCount,
     ],
@@ -88,7 +90,7 @@ export function RichTextEditor({
     const currentHTML = editor.getHTML();
     if (value !== currentHTML) {
       isSettingContent.current = true;
-      editor.commands.setContent(value || '', { emitUpdate: false });
+      editor.commands.setContent(value || '', false);
       isSettingContent.current = false;
     }
   }, [value]);
@@ -106,7 +108,6 @@ export function RichTextEditor({
         alert('Failed to upload image');
       }
     } else {
-      // Fallback: prompt for URL
       const url = prompt('Enter image URL:');
       if (url) editor.chain().focus().setImage({ src: url, alt: '' }).run();
     }
@@ -131,7 +132,7 @@ export function RichTextEditor({
   const toggleHtmlMode = useCallback(() => {
     if (isHtmlMode) {
       onChange(htmlSource);
-      if (editor) { isSettingContent.current = true; editor.commands.setContent(htmlSource, { emitUpdate: false }); isSettingContent.current = false; }
+      if (editor) { isSettingContent.current = true; editor.commands.setContent(htmlSource, false); isSettingContent.current = false; }
     } else {
       if (editor) setHtmlSource(editor.getHTML());
     }
@@ -139,155 +140,171 @@ export function RichTextEditor({
   }, [isHtmlMode, htmlSource, editor, onChange]);
 
   if (!editor) {
-    return <div className="bcms-border bcms-border-gray-300 bcms-rounded-lg bcms-p-8 bcms-text-center bcms-text-gray-400">Loading editor...</div>;
+    return (
+      <div className="border border-gray-200 rounded-lg p-8 text-center text-gray-400 text-sm">
+        Loading editor...
+      </div>
+    );
   }
 
   if (isHtmlMode) {
     return (
-      <div className={`bcms-tiptap-editor ${className}`}>
-        <div className="bcms-border bcms-border-gray-300 bcms-rounded-lg bcms-overflow-hidden">
-          <div className="bcms-bg-gray-50 bcms-border-b bcms-border-gray-300 bcms-px-3 bcms-py-2 bcms-flex bcms-items-center bcms-justify-between">
-            <span className="bcms-text-xs bcms-font-medium bcms-text-gray-500">HTML Source</span>
-            <button type="button" onClick={toggleHtmlMode} className="bcms-flex bcms-items-center bcms-gap-1.5 bcms-px-3 bcms-py-1 bcms-text-xs bcms-font-medium bcms-bg-blue-600 bcms-text-white bcms-rounded">
-              <Code className="bcms-w-3.5 bcms-h-3.5" /> Visual
+      <div className={`tiptap-editor ${className}`}>
+        <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm">
+          <div className="bg-gray-50 border-b border-gray-200 px-3 py-2 flex items-center justify-between">
+            <span className="text-xs font-medium text-gray-500">HTML Source</span>
+            <button
+              type="button"
+              onClick={toggleHtmlMode}
+              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-all duration-150"
+            >
+              <Code className="w-3.5 h-3.5" /> Visual
             </button>
           </div>
-          <textarea value={htmlSource} onChange={(e) => { setHtmlSource(e.target.value); onChange(e.target.value); }} placeholder={placeholder} className="bcms-w-full bcms-px-4 bcms-py-3 bcms-font-mono bcms-text-sm bcms-bg-gray-50 bcms-text-gray-900 bcms-outline-none bcms-resize-y" style={{ minHeight: heightMap[minHeight] }} />
+          <textarea
+            value={htmlSource}
+            onChange={(e) => { setHtmlSource(e.target.value); onChange(e.target.value); }}
+            placeholder={placeholder}
+            className="w-full px-4 py-3 font-mono text-sm bg-white text-gray-900 outline-none resize-y border-0 focus:ring-0"
+            style={{ minHeight: heightMap[minHeight] }}
+          />
         </div>
       </div>
     );
   }
 
   return (
-    <div className={`bcms-tiptap-editor ${className}`}>
-      <div className="bcms-border bcms-border-gray-300 bcms-rounded-lg bcms-overflow-hidden focus-within:bcms-border-blue-500 focus-within:bcms-ring-2 focus-within:bcms-ring-blue-200 bcms-transition-all">
+    <div className={`tiptap-editor ${className}`}>
+      <div className="border border-gray-200 rounded-lg overflow-hidden shadow-sm focus-within:border-blue-500 focus-within:ring-2 focus-within:ring-blue-500/20 transition-all duration-150">
         {/* Toolbar */}
-        <div className="bcms-bg-gray-50 bcms-border-b bcms-border-gray-300 bcms-px-2 bcms-py-1.5 bcms-flex bcms-flex-wrap bcms-items-center bcms-gap-0.5">
+        <div className="bg-gray-50 border-b border-gray-200 px-2 py-1.5 flex flex-wrap items-center gap-0.5">
           {/* Headings */}
           <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} isActive={editor.isActive('heading', { level: 1 })} title="Heading 1">
-            <Heading1 className="bcms-w-4 bcms-h-4" />
+            <Heading1 className="w-4 h-4" />
           </ToolbarButton>
           <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} isActive={editor.isActive('heading', { level: 2 })} title="Heading 2">
-            <Heading2 className="bcms-w-4 bcms-h-4" />
+            <Heading2 className="w-4 h-4" />
           </ToolbarButton>
           <ToolbarButton onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} isActive={editor.isActive('heading', { level: 3 })} title="Heading 3">
-            <Heading3 className="bcms-w-4 bcms-h-4" />
+            <Heading3 className="w-4 h-4" />
           </ToolbarButton>
 
-          <div className="bcms-w-px bcms-h-6 bcms-bg-gray-300 bcms-mx-1" />
+          <div className="w-px h-5 bg-gray-200 mx-1" />
 
           {/* Formatting */}
           <ToolbarButton onClick={() => editor.chain().focus().toggleBold().run()} isActive={editor.isActive('bold')} title="Bold">
-            <Bold className="bcms-w-4 bcms-h-4" />
+            <Bold className="w-4 h-4" />
           </ToolbarButton>
           <ToolbarButton onClick={() => editor.chain().focus().toggleItalic().run()} isActive={editor.isActive('italic')} title="Italic">
-            <Italic className="bcms-w-4 bcms-h-4" />
+            <Italic className="w-4 h-4" />
           </ToolbarButton>
           <ToolbarButton onClick={() => editor.chain().focus().toggleUnderline().run()} isActive={editor.isActive('underline')} title="Underline">
-            <UnderlineIcon className="bcms-w-4 bcms-h-4" />
+            <UnderlineIcon className="w-4 h-4" />
           </ToolbarButton>
           <ToolbarButton onClick={() => editor.chain().focus().toggleStrike().run()} isActive={editor.isActive('strike')} title="Strikethrough">
-            <Strikethrough className="bcms-w-4 bcms-h-4" />
+            <Strikethrough className="w-4 h-4" />
           </ToolbarButton>
 
-          <div className="bcms-w-px bcms-h-6 bcms-bg-gray-300 bcms-mx-1" />
+          <div className="w-px h-5 bg-gray-200 mx-1" />
 
           {/* Lists */}
           <ToolbarButton onClick={() => editor.chain().focus().toggleBulletList().run()} isActive={editor.isActive('bulletList')} title="Bullet List">
-            <List className="bcms-w-4 bcms-h-4" />
+            <List className="w-4 h-4" />
           </ToolbarButton>
           <ToolbarButton onClick={() => editor.chain().focus().toggleOrderedList().run()} isActive={editor.isActive('orderedList')} title="Ordered List">
-            <ListOrdered className="bcms-w-4 bcms-h-4" />
+            <ListOrdered className="w-4 h-4" />
           </ToolbarButton>
 
-          <div className="bcms-w-px bcms-h-6 bcms-bg-gray-300 bcms-mx-1" />
+          <div className="w-px h-5 bg-gray-200 mx-1" />
 
           {/* Alignment */}
           <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('left').run()} isActive={editor.isActive({ textAlign: 'left' })} title="Align Left">
-            <AlignLeft className="bcms-w-4 bcms-h-4" />
+            <AlignLeft className="w-4 h-4" />
           </ToolbarButton>
           <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('center').run()} isActive={editor.isActive({ textAlign: 'center' })} title="Align Center">
-            <AlignCenter className="bcms-w-4 bcms-h-4" />
+            <AlignCenter className="w-4 h-4" />
           </ToolbarButton>
           <ToolbarButton onClick={() => editor.chain().focus().setTextAlign('right').run()} isActive={editor.isActive({ textAlign: 'right' })} title="Align Right">
-            <AlignRight className="bcms-w-4 bcms-h-4" />
+            <AlignRight className="w-4 h-4" />
           </ToolbarButton>
 
-          <div className="bcms-w-px bcms-h-6 bcms-bg-gray-300 bcms-mx-1" />
+          <div className="w-px h-5 bg-gray-200 mx-1" />
 
           {/* Block elements */}
           <ToolbarButton onClick={() => editor.chain().focus().toggleBlockquote().run()} isActive={editor.isActive('blockquote')} title="Blockquote">
-            <Quote className="bcms-w-4 bcms-h-4" />
+            <Quote className="w-4 h-4" />
           </ToolbarButton>
           <ToolbarButton onClick={() => editor.chain().focus().setHorizontalRule().run()} title="Horizontal Rule">
-            <Minus className="bcms-w-4 bcms-h-4" />
+            <Minus className="w-4 h-4" />
           </ToolbarButton>
           <ToolbarButton onClick={() => editor.chain().focus().toggleCodeBlock().run()} isActive={editor.isActive('codeBlock')} title="Code Block">
-            <Code2 className="bcms-w-4 bcms-h-4" />
+            <Code2 className="w-4 h-4" />
           </ToolbarButton>
 
-          <div className="bcms-w-px bcms-h-6 bcms-bg-gray-300 bcms-mx-1" />
+          <div className="w-px h-5 bg-gray-200 mx-1" />
 
           {/* Link */}
           <ToolbarButton onClick={handleSetLink} isActive={editor.isActive('link')} title="Insert Link">
-            <LinkIcon className="bcms-w-4 bcms-h-4" />
+            <LinkIcon className="w-4 h-4" />
           </ToolbarButton>
           {editor.isActive('link') && (
             <ToolbarButton onClick={() => editor.chain().focus().unsetLink().run()} title="Remove Link">
-              <Unlink className="bcms-w-4 bcms-h-4" />
+              <Unlink className="w-4 h-4" />
             </ToolbarButton>
           )}
 
-          <div className="bcms-w-px bcms-h-6 bcms-bg-gray-300 bcms-mx-1" />
+          <div className="w-px h-5 bg-gray-200 mx-1" />
 
           {/* Table */}
           {!editor.isActive('table') ? (
             <ToolbarButton onClick={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()} title="Insert Table">
-              <TableIcon className="bcms-w-4 bcms-h-4" />
+              <TableIcon className="w-4 h-4" />
             </ToolbarButton>
           ) : (
             <>
               <ToolbarButton onClick={() => editor.chain().focus().addColumnAfter().run()} title="Add Column">
-                <ArrowRight className="bcms-w-4 bcms-h-4" />
+                <ArrowRight className="w-4 h-4" />
               </ToolbarButton>
               <ToolbarButton onClick={() => editor.chain().focus().addRowAfter().run()} title="Add Row">
-                <ArrowDown className="bcms-w-4 bcms-h-4" />
+                <ArrowDown className="w-4 h-4" />
               </ToolbarButton>
               <ToolbarButton onClick={() => editor.chain().focus().deleteTable().run()} title="Delete Table">
-                <Trash2 className="bcms-w-4 bcms-h-4" />
+                <Trash2 className="w-4 h-4" />
               </ToolbarButton>
             </>
           )}
 
-          <div className="bcms-w-px bcms-h-6 bcms-bg-gray-300 bcms-mx-1" />
+          <div className="w-px h-5 bg-gray-200 mx-1" />
 
           {/* Media */}
           <ToolbarButton onClick={() => imageInputRef.current?.click()} title="Insert Image">
-            <ImageIcon className="bcms-w-4 bcms-h-4" />
+            <ImageIcon className="w-4 h-4" />
           </ToolbarButton>
           <ToolbarButton onClick={handleYouTubeEmbed} title="Embed YouTube">
-            <YoutubeIcon className="bcms-w-4 bcms-h-4" />
+            <YoutubeIcon className="w-4 h-4" />
           </ToolbarButton>
 
-          <div className="bcms-flex-1" />
+          <div className="flex-1" />
 
           {/* HTML toggle */}
           <ToolbarButton onClick={toggleHtmlMode} title="HTML Source">
-            <Code className="bcms-w-4 bcms-h-4" />
+            <Code className="w-4 h-4" />
           </ToolbarButton>
         </div>
 
         {/* Editor Content */}
-        <EditorContent editor={editor} className="bcms-tiptap-content bcms-prose bcms-max-w-none" style={{ minHeight: heightMap[minHeight] }} />
+        <div className="bg-white">
+          <EditorContent editor={editor} className="tiptap-content prose max-w-none" style={{ minHeight: heightMap[minHeight] }} />
+        </div>
 
         {/* Word count */}
-        <div className="bcms-bg-gray-50 bcms-border-t bcms-border-gray-300 bcms-px-3 bcms-py-1.5 bcms-flex bcms-items-center bcms-gap-3 bcms-text-xs bcms-text-gray-400">
+        <div className="bg-gray-50 border-t border-gray-200 px-3 py-1.5 flex items-center gap-3 text-xs text-gray-400">
           <span>{editor.storage.characterCount.words()} words</span>
           <span>{editor.storage.characterCount.characters()} characters</span>
         </div>
       </div>
 
-      <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="bcms-hidden" />
+      <input ref={imageInputRef} type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
     </div>
   );
 }

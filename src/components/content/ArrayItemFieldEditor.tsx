@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, X } from 'lucide-react';
 import { FieldTypeSelector } from './FieldTypeSelector';
 import { generateApiIdentifier } from '../../core/helpers';
 import type { FieldDefinition, FieldType } from '../../core/types';
@@ -35,11 +35,17 @@ export function ArrayItemFieldEditor({ fields, onChange, allModels = [] }: Array
   };
 
   return (
-    <div className="bcms-space-y-3">
-      <label className="bcms-block bcms-text-xs bcms-font-medium bcms-text-gray-500">Array Item Fields</label>
+    <div className="space-y-2">
+      <label className="block text-xs font-semibold text-gray-400 uppercase tracking-wider">
+        Array Item Fields
+      </label>
+
       {fields.map((f, i) => (
-        <div key={f.id} className="bcms-flex bcms-items-start bcms-gap-2 bcms-p-3 bcms-border bcms-border-gray-200 bcms-rounded-lg bcms-bg-gray-50">
-          <div className="bcms-flex-1 bcms-space-y-2">
+        <div
+          key={f.id}
+          className="flex items-start gap-2 p-3 bg-white rounded-lg ring-1 ring-gray-200"
+        >
+          <div className="flex-1 space-y-2">
             <input
               type="text"
               value={f.name}
@@ -48,7 +54,7 @@ export function ArrayItemFieldEditor({ fields, onChange, allModels = [] }: Array
                 const api_identifier = generateApiIdentifier(name);
                 updateSubField(i, { name, api_identifier });
               }}
-              className="bcms-w-full bcms-px-3 bcms-py-1.5 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded"
+              className="w-full px-3 py-1.5 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
               placeholder="Field name"
             />
             <FieldTypeSelector
@@ -57,18 +63,22 @@ export function ArrayItemFieldEditor({ fields, onChange, allModels = [] }: Array
             />
           </div>
           <button
+            type="button"
             onClick={() => removeSubField(i)}
-            className="bcms-p-1 bcms-text-gray-400 hover:bcms-text-red-600 bcms-transition bcms-mt-1"
+            className="inline-flex items-center justify-center w-7 h-7 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all mt-1"
           >
-            <Trash2 className="bcms-w-4 bcms-h-4" />
+            <X className="w-4 h-4" />
           </button>
         </div>
       ))}
+
       <button
+        type="button"
         onClick={addSubField}
-        className="bcms-text-xs bcms-text-blue-600 hover:bcms-text-blue-700 bcms-flex bcms-items-center bcms-gap-1"
+        className="inline-flex items-center gap-1.5 text-sm font-medium text-blue-600 hover:text-blue-700 transition-colors"
       >
-        <Plus className="bcms-w-3 bcms-h-3" /> Add sub-field
+        <Plus className="w-3.5 h-3.5" />
+        Add sub-field
       </button>
     </div>
   );

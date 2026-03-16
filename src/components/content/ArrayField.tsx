@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, Trash2, GripVertical } from 'lucide-react';
+import { Plus, X, GripVertical } from 'lucide-react';
 import { DynamicField } from './DynamicField';
 import type { FieldDefinition } from '../../core/types';
 
@@ -29,39 +29,54 @@ export function ArrayField({ itemFields, value, onChange }: ArrayFieldProps) {
   };
 
   return (
-    <div className="bcms-space-y-3">
+    <div className="space-y-3">
       {value.map((item, index) => (
-        <div key={index} className="bcms-border bcms-border-gray-200 bcms-rounded-lg bcms-p-4 bcms-bg-gray-50">
-          <div className="bcms-flex bcms-items-center bcms-justify-between bcms-mb-3">
-            <div className="bcms-flex bcms-items-center bcms-gap-2">
-              <GripVertical className="bcms-w-4 bcms-h-4 bcms-text-gray-300" />
-              <span className="bcms-text-xs bcms-font-medium bcms-text-gray-500">Item {index + 1}</span>
+        <div
+          key={index}
+          className="bg-white rounded-lg ring-1 ring-gray-200 shadow-sm overflow-hidden"
+        >
+          {/* Item Header */}
+          <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50/50">
+            <div className="flex items-center gap-2">
+              <GripVertical className="w-4 h-4 text-gray-300 cursor-grab" />
+              <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-200 text-[10px] font-semibold text-gray-600">
+                {index + 1}
+              </span>
+              <span className="text-xs text-gray-500 font-medium">Item {index + 1}</span>
             </div>
             <button
+              type="button"
               onClick={() => removeItem(index)}
-              className="bcms-p-1 bcms-text-gray-400 hover:bcms-text-red-600 bcms-transition"
+              className="inline-flex items-center justify-center w-7 h-7 rounded-md text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
+              title="Remove item"
             >
-              <Trash2 className="bcms-w-4 bcms-h-4" />
+              <X className="w-4 h-4" />
             </button>
           </div>
-          <div className="bcms-space-y-4">
+
+          {/* Item Fields */}
+          <div className="p-4 space-y-4">
             {itemFields.map((field) => (
               <DynamicField
                 key={field.id}
                 field={field}
                 value={item[field.api_identifier]}
                 onChange={(v) => updateItem(index, field.api_identifier, v)}
+                compact
               />
             ))}
           </div>
         </div>
       ))}
 
+      {/* Add Item Button */}
       <button
+        type="button"
         onClick={addItem}
-        className="bcms-w-full bcms-border-2 bcms-border-dashed bcms-border-gray-300 bcms-rounded-lg bcms-py-3 bcms-text-sm bcms-text-gray-500 hover:bcms-border-blue-400 hover:bcms-text-blue-600 bcms-transition bcms-flex bcms-items-center bcms-justify-center bcms-gap-2"
+        className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg bg-white text-gray-700 hover:bg-gray-50 ring-1 ring-gray-200 shadow-sm transition-all"
       >
-        <Plus className="bcms-w-4 bcms-h-4" /> Add Item
+        <Plus className="w-4 h-4" />
+        Add Item
       </button>
     </div>
   );

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Save, Trash2 } from 'lucide-react';
+import { X, Save, Trash2, Shield, Pencil, Eye } from 'lucide-react';
 import { useSupabase } from '../provider';
 import { updateUser } from '../../core/queries';
 import type { User, UserRole } from '../../core/types';
@@ -10,6 +10,30 @@ interface UserEditorProps {
   onClose: () => void;
   onSave: () => void;
 }
+
+const ROLES: Array<{ value: UserRole; label: string; description: string; icon: typeof Shield; badgeClass: string }> = [
+  {
+    value: 'Admin',
+    label: 'Admin',
+    description: 'Full access to all settings and content',
+    icon: Shield,
+    badgeClass: 'bg-purple-50 text-purple-700 ring-purple-200 peer-checked:ring-purple-500',
+  },
+  {
+    value: 'Editor',
+    label: 'Editor',
+    description: 'Can create and edit content',
+    icon: Pencil,
+    badgeClass: 'bg-blue-50 text-blue-700 ring-blue-200 peer-checked:ring-blue-500',
+  },
+  {
+    value: 'Viewer',
+    label: 'Viewer',
+    description: 'Read-only access to content',
+    icon: Eye,
+    badgeClass: 'bg-gray-50 text-gray-600 ring-gray-200 peer-checked:ring-gray-500',
+  },
+];
 
 export function UserEditor({ user, isOpen, onClose, onSave }: UserEditorProps) {
   const supabase = useSupabase();
@@ -41,7 +65,10 @@ export function UserEditor({ user, isOpen, onClose, onSave }: UserEditorProps) {
   }, [user, isOpen]);
 
   const handleSave = async () => {
-    if (!email.trim()) { setError('Email is required'); return; }
+    if (!email.trim()) {
+      setError('Email is required');
+      return;
+    }
     setSaving(true);
     setError('');
 
@@ -54,8 +81,6 @@ export function UserEditor({ user, isOpen, onClose, onSave }: UserEditorProps) {
           role,
         });
       } else {
-        // For new users, we need admin API which isn't available in the package.
-        // Create via supabase auth signup
         if (!password || password.length < 8) {
           setError('Password must be at least 8 characters');
           setSaving(false);
@@ -93,66 +118,169 @@ export function UserEditor({ user, isOpen, onClose, onSave }: UserEditorProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="bcms-fixed bcms-inset-0 bcms-z-50">
-      <div className="bcms-fixed bcms-inset-0 bcms-bg-black/50" onClick={onClose} />
-      <div className="bcms-fixed bcms-right-0 bcms-top-0 bcms-bottom-0 bcms-w-full bcms-max-w-md bcms-bg-white bcms-shadow-xl bcms-overflow-y-auto">
-        <div className="bcms-p-6 bcms-border-b bcms-border-gray-200 bcms-flex bcms-items-center bcms-justify-between">
-          <h2 className="bcms-text-lg bcms-font-semibold bcms-text-gray-900">
-            {user ? 'Edit User' : 'Add New User'}
-          </h2>
-          <button onClick={onClose} className="bcms-p-2 hover:bcms-bg-gray-100 bcms-rounded-lg bcms-transition">
-            <X className="bcms-w-5 bcms-h-5 bcms-text-gray-400" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Backdrop */}
+      <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm" onClick={onClose} />
+
+      {/* Modal */}
+      <div className="relative bg-white rounded-xl shadow-lg w-full max-w-md border border-gray-200 animate-fade-in-up">
+        {/* Header */}
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <div>
+            <h3 className="text-base font-semibold text-gray-900">
+              {user ? 'Edit User' : 'Invite User'}
+            </h3>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {user ? 'Update user details and role' : 'Add a new team member'}
+            </p>
+          </div>
+          <button onClick={onClose} className="p-1 rounded-md hover:bg-gray-100 transition-all">
+            <X className="w-4 h-4 text-gray-400" />
           </button>
         </div>
 
-        <div className="bcms-p-6 bcms-space-y-4">
+        {/* Body */}
+        <div className="px-6 py-5 space-y-4 max-h-[60vh] overflow-y-auto">
           {error && (
-            <div className="bcms-bg-red-50 bcms-border bcms-border-red-200 bcms-text-red-700 bcms-px-4 bcms-py-3 bcms-rounded-lg bcms-text-sm">
-              {error}
+            <div className="flex gap-3 p-3 rounded-lg bg-red-50 border border-red-200/60">
+              <p className="text-sm text-red-700">{error}</p>
             </div>
           )}
 
           <div>
-            <label className="bcms-block bcms-text-sm bcms-font-medium bcms-text-gray-700 bcms-mb-1">Email *</label>
-            <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} disabled={!!user} className="bcms-w-full bcms-px-4 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg disabled:bcms-bg-gray-100" />
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              disabled={!!user}
+              placeholder="user@example.com"
+              className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all disabled:bg-gray-50 disabled:text-gray-500"
+            />
           </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">First Name</label>
+              <input
+                type="text"
+                value={firstName}
+                onChange={(e) => setFirstName(e.target.value)}
+                placeholder="First"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Last Name</label>
+              <input
+                type="text"
+                value={lastName}
+                onChange={(e) => setLastName(e.target.value)}
+                placeholder="Last"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+              />
+            </div>
+          </div>
+
+          {/* Role selector — radio-style cards */}
           <div>
-            <label className="bcms-block bcms-text-sm bcms-font-medium bcms-text-gray-700 bcms-mb-1">First Name</label>
-            <input type="text" value={firstName} onChange={(e) => setFirstName(e.target.value)} className="bcms-w-full bcms-px-4 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg" />
+            <label className="block text-sm font-medium text-gray-700 mb-2">Role</label>
+            <div className="space-y-2">
+              {ROLES.map((r) => {
+                const isSelected = role === r.value;
+                return (
+                  <button
+                    key={r.value}
+                    type="button"
+                    onClick={() => setRole(r.value)}
+                    className={`w-full text-left px-3 py-2.5 rounded-lg ring-1 transition-all flex items-center gap-3 ${
+                      isSelected
+                        ? 'ring-2 ring-blue-500 bg-blue-50/50'
+                        : 'ring-gray-200 bg-white hover:bg-gray-50'
+                    }`}
+                  >
+                    <div
+                      className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${
+                        r.value === 'Admin'
+                          ? 'bg-purple-100 text-purple-600'
+                          : r.value === 'Editor'
+                          ? 'bg-blue-100 text-blue-600'
+                          : 'bg-gray-100 text-gray-500'
+                      }`}
+                    >
+                      <r.icon className="w-4 h-4" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900">{r.label}</p>
+                      <p className="text-xs text-gray-500">{r.description}</p>
+                    </div>
+                    <div
+                      className={`w-4 h-4 rounded-full border-2 flex-shrink-0 flex items-center justify-center ${
+                        isSelected ? 'border-blue-600 bg-blue-600' : 'border-gray-300'
+                      }`}
+                    >
+                      {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          <div>
-            <label className="bcms-block bcms-text-sm bcms-font-medium bcms-text-gray-700 bcms-mb-1">Last Name</label>
-            <input type="text" value={lastName} onChange={(e) => setLastName(e.target.value)} className="bcms-w-full bcms-px-4 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg" />
-          </div>
-          <div>
-            <label className="bcms-block bcms-text-sm bcms-font-medium bcms-text-gray-700 bcms-mb-1">Phone</label>
-            <input type="tel" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} className="bcms-w-full bcms-px-4 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg" />
-          </div>
-          <div>
-            <label className="bcms-block bcms-text-sm bcms-font-medium bcms-text-gray-700 bcms-mb-1">Role</label>
-            <select value={role} onChange={(e) => setRole(e.target.value as UserRole)} className="bcms-w-full bcms-px-4 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg">
-              <option value="Viewer">Viewer</option>
-              <option value="Editor">Editor</option>
-              <option value="Admin">Admin</option>
-            </select>
-          </div>
+
           {!user && (
             <div>
-              <label className="bcms-block bcms-text-sm bcms-font-medium bcms-text-gray-700 bcms-mb-1">Password *</label>
-              <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} className="bcms-w-full bcms-px-4 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg" placeholder="Min 8 characters" />
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="Min 8 characters"
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+              />
+              <p className="mt-1.5 text-xs text-gray-400">Must be at least 8 characters</p>
             </div>
           )}
         </div>
 
-        <div className="bcms-p-6 bcms-border-t bcms-border-gray-200 bcms-space-y-3">
-          <button onClick={handleSave} disabled={saving} className="bcms-w-full bcms-bg-blue-600 bcms-text-white bcms-py-2.5 bcms-text-sm bcms-font-semibold bcms-rounded-lg hover:bcms-bg-blue-700 bcms-transition bcms-flex bcms-items-center bcms-justify-center bcms-gap-2 disabled:bcms-opacity-50">
-            <Save className="bcms-w-4 bcms-h-4" /> {saving ? 'Saving...' : 'Save'}
-          </button>
-          {user && (
-            <button onClick={handleDelete} disabled={saving} className="bcms-w-full bcms-bg-red-600 bcms-text-white bcms-py-2.5 bcms-text-sm bcms-rounded-lg hover:bcms-bg-red-700 bcms-transition bcms-flex bcms-items-center bcms-justify-center bcms-gap-2 disabled:bcms-opacity-50">
-              <Trash2 className="bcms-w-4 bcms-h-4" /> Delete User
+        {/* Footer */}
+        <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
+          <div>
+            {user && (
+              <button
+                onClick={handleDelete}
+                disabled={saving}
+                className="inline-flex items-center gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg px-3 py-2 text-sm font-medium transition-all disabled:opacity-50"
+              >
+                <Trash2 className="w-4 h-4" />
+                Delete
+              </button>
+            )}
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg px-4 py-2 text-sm font-medium transition-all"
+            >
+              Cancel
             </button>
-          )}
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {saving ? (
+                <>
+                  <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                  Saving…
+                </>
+              ) : (
+                <>
+                  <Save className="w-4 h-4" />
+                  {user ? 'Save Changes' : 'Create User'}
+                </>
+              )}
+            </button>
+          </div>
         </div>
       </div>
     </div>

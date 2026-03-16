@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useCMS } from './provider';
 import { Login } from './auth/Login';
 import { MainLayout } from './layout/MainLayout';
@@ -8,16 +8,20 @@ import { ContentEntriesList } from './content/ContentEntriesList';
 import { ContentEntryEditor } from './content/ContentEntryEditor';
 import { Media } from './media/Media';
 import { Settings } from './settings/Settings';
+import { useRouter, navigate, routeToPath } from '../core/router';
 import type { CMSRoute } from '../core/types';
 
 export function AdminPanel() {
   const { isAuthenticated, isLoading, config } = useCMS();
-  const [route, setRoute] = useState<CMSRoute>({ page: 'content-models' });
+  const { route } = useRouter();
+
+  // Bridge: convert CMSRoute-based onNavigate calls to hash navigation
+  const onNavigate = (r: CMSRoute) => navigate(routeToPath(r));
 
   if (isLoading) {
     return (
-      <div className="bcms-flex bcms-items-center bcms-justify-center bcms-h-screen bcms-bg-gray-50">
-        <div className="bcms-animate-spin bcms-w-8 bcms-h-8 bcms-border-4 bcms-border-blue-600 bcms-border-t-transparent bcms-rounded-full" />
+      <div className="flex items-center justify-center h-screen bg-gray-50">
+        <div className="w-8 h-8 border-2 border-blue-200 border-t-blue-600 rounded-full animate-spin" />
       </div>
     );
   }
@@ -29,20 +33,19 @@ export function AdminPanel() {
   const renderView = () => {
     switch (route.page) {
       case 'content-models':
-        return <ContentModelsList onNavigate={setRoute} />;
+        return <ContentModelsList />;
 
       case 'content-model-editor':
-        return <ContentModelEditor modelId={route.id} onNavigate={setRoute} />;
+        return <ContentModelEditor modelId={route.id} />;
 
       case 'content-entries':
-        return <ContentEntriesList modelId={route.modelId} onNavigate={setRoute} />;
+        return <ContentEntriesList modelId={route.modelId} />;
 
       case 'content-entry-editor':
         return (
           <ContentEntryEditor
             modelId={route.modelId}
             entryId={route.entryId}
-            onNavigate={setRoute}
           />
         );
 
@@ -52,7 +55,7 @@ export function AdminPanel() {
       case 'settings':
       case 'users':
       case 'change-password':
-        return <Settings onNavigate={setRoute} />;
+        return <Settings />;
 
       case 'custom': {
         const customItem = config.sidebarItems?.find((s) => s.path === route.path);
@@ -60,16 +63,16 @@ export function AdminPanel() {
           const CustomComponent = customItem.component;
           return <CustomComponent />;
         }
-        return <div className="bcms-p-8 bcms-text-gray-500">Page not found</div>;
+        return <div className="p-8 text-gray-500">Page not found</div>;
       }
 
       default:
-        return <ContentModelsList onNavigate={setRoute} />;
+        return <ContentModelsList />;
     }
   };
 
   return (
-    <MainLayout currentRoute={route} onNavigate={setRoute}>
+    <MainLayout currentRoute={route}>
       {renderView()}
     </MainLayout>
   );

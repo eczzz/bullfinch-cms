@@ -13,8 +13,6 @@ interface FieldEditorProps {
 }
 
 export function FieldEditor({ field, onChange, onRemove, allModels = [] }: FieldEditorProps) {
-  const [expanded, setExpanded] = useState(true);
-
   const update = (partial: Partial<FieldDefinition>) => {
     onChange(partial);
   };
@@ -36,94 +34,49 @@ export function FieldEditor({ field, onChange, onRemove, allModels = [] }: Field
   };
 
   return (
-    <div className="bcms-border bcms-border-gray-200 bcms-rounded-lg bcms-bg-white">
-      {/* Header */}
-      <div
-        className="bcms-flex bcms-items-center bcms-gap-2 bcms-px-4 bcms-py-3 bcms-cursor-pointer hover:bcms-bg-gray-50 bcms-transition"
-        onClick={() => setExpanded(!expanded)}
-      >
-        <GripVertical className="bcms-w-4 bcms-h-4 bcms-text-gray-300 bcms-cursor-grab" />
-        {expanded ? (
-          <ChevronDown className="bcms-w-4 bcms-h-4 bcms-text-gray-400" />
-        ) : (
-          <ChevronRight className="bcms-w-4 bcms-h-4 bcms-text-gray-400" />
-        )}
-        <span className="bcms-flex-1 bcms-font-medium bcms-text-sm bcms-text-gray-900">
-          {field.name || 'Untitled Field'}
-        </span>
-        <span className="bcms-text-xs bcms-text-gray-400 bcms-bg-gray-100 bcms-px-2 bcms-py-0.5 bcms-rounded">
-          {field.field_type}
-        </span>
-        {onRemove && (
-          <button
-            onClick={(e) => { e.stopPropagation(); onRemove(); }}
-            className="bcms-p-1 bcms-text-gray-400 hover:bcms-text-red-600 bcms-transition"
-            title="Remove field"
-          >
-            <Trash2 className="bcms-w-4 bcms-h-4" />
-          </button>
-        )}
-      </div>
-
-      {/* Body */}
-      {expanded && (
-        <div className="bcms-px-4 bcms-pb-4 bcms-space-y-4 bcms-border-t bcms-border-gray-100 bcms-pt-4">
-          <div className="bcms-grid bcms-grid-cols-2 bcms-gap-4">
-            <div>
-              <label className="bcms-block bcms-text-xs bcms-font-medium bcms-text-gray-500 bcms-mb-1">Name</label>
-              <input
-                type="text"
-                value={field.name}
-                onChange={(e) => handleNameChange(e.target.value)}
-                className="bcms-w-full bcms-px-3 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg"
-                placeholder="Field name"
-              />
-            </div>
-            <div>
-              <label className="bcms-block bcms-text-xs bcms-font-medium bcms-text-gray-500 bcms-mb-1">API Identifier</label>
-              <input
-                type="text"
-                value={field.api_identifier}
-                onChange={(e) => update({ api_identifier: e.target.value })}
-                className="bcms-w-full bcms-px-3 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg bcms-font-mono"
-                placeholder="field_name"
-              />
-            </div>
-          </div>
-
+    <div className="space-y-5">
+      {/* Section: Basic */}
+      <div>
+        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Basic</h4>
+        <div className="grid grid-cols-2 gap-4">
           <div>
-            <label className="bcms-block bcms-text-xs bcms-font-medium bcms-text-gray-500 bcms-mb-1">Type</label>
-            <FieldTypeSelector value={field.field_type} onChange={handleTypeChange} />
-          </div>
-
-          <div>
-            <label className="bcms-block bcms-text-xs bcms-font-medium bcms-text-gray-500 bcms-mb-1">Help Text</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Name</label>
             <input
               type="text"
-              value={field.help_text || ''}
-              onChange={(e) => update({ help_text: e.target.value })}
-              className="bcms-w-full bcms-px-3 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg"
-              placeholder="Optional help text"
+              value={field.name}
+              onChange={(e) => handleNameChange(e.target.value)}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+              placeholder="Field name"
             />
           </div>
-
-          <div className="bcms-flex bcms-items-center bcms-gap-4">
-            <label className="bcms-flex bcms-items-center bcms-gap-2 bcms-cursor-pointer">
-              <input
-                type="checkbox"
-                checked={!!field.required}
-                onChange={(e) => update({ required: e.target.checked })}
-                className="bcms-w-4 bcms-h-4 bcms-rounded"
-              />
-              <span className="bcms-text-sm bcms-text-gray-600">Required</span>
-            </label>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">API Identifier</label>
+            <input
+              type="text"
+              value={field.api_identifier}
+              onChange={(e) => update({ api_identifier: e.target.value })}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+              placeholder="field_name"
+            />
           </div>
+        </div>
+      </div>
 
-          {/* Type-specific options */}
+      {/* Section: Type */}
+      <div>
+        <label className="block text-sm font-medium text-gray-700 mb-1.5">Type</label>
+        <FieldTypeSelector value={field.field_type} onChange={handleTypeChange} />
+      </div>
+
+      {/* Section: Options (per-type) */}
+      {(field.field_type === 'select' || field.field_type === 'reference' || field.field_type === 'number' || field.field_type === 'array') && (
+        <div>
+          <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Options</h4>
+
           {field.field_type === 'select' && (
             <div>
-              <label className="bcms-block bcms-text-xs bcms-font-medium bcms-text-gray-500 bcms-mb-1">
-                Choices (one per line: label|value)
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">
+                Choices <span className="text-gray-400 font-normal">(one per line: label|value)</span>
               </label>
               <textarea
                 value={(field.options?.choices || []).map((c) => `${c.label}|${c.value}`).join('\n')}
@@ -138,7 +91,7 @@ export function FieldEditor({ field, onChange, onRemove, allModels = [] }: Field
                   updateOptions({ choices });
                 }}
                 rows={4}
-                className="bcms-w-full bcms-px-3 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg bcms-font-mono"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm font-mono focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all resize-none"
                 placeholder="Option 1|option_1&#10;Option 2|option_2"
               />
             </div>
@@ -146,13 +99,13 @@ export function FieldEditor({ field, onChange, onRemove, allModels = [] }: Field
 
           {field.field_type === 'reference' && (
             <div>
-              <label className="bcms-block bcms-text-xs bcms-font-medium bcms-text-gray-500 bcms-mb-1">Reference Model</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">Reference Model</label>
               <select
                 value={field.options?.reference_model_id || ''}
                 onChange={(e) => updateOptions({ reference_model_id: e.target.value })}
-                className="bcms-w-full bcms-px-3 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg"
+                className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
               >
-                <option value="">Select model...</option>
+                <option value="">Select model…</option>
                 {allModels.map((m) => (
                   <option key={m.id} value={m.id}>{m.name}</option>
                 ))}
@@ -161,18 +114,33 @@ export function FieldEditor({ field, onChange, onRemove, allModels = [] }: Field
           )}
 
           {field.field_type === 'number' && (
-            <div className="bcms-grid bcms-grid-cols-3 bcms-gap-4">
+            <div className="grid grid-cols-3 gap-4">
               <div>
-                <label className="bcms-block bcms-text-xs bcms-font-medium bcms-text-gray-500 bcms-mb-1">Min</label>
-                <input type="number" value={field.options?.min ?? ''} onChange={(e) => updateOptions({ min: e.target.value ? Number(e.target.value) : undefined })} className="bcms-w-full bcms-px-3 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg" />
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Min</label>
+                <input
+                  type="number"
+                  value={field.options?.min ?? ''}
+                  onChange={(e) => updateOptions({ min: e.target.value ? Number(e.target.value) : undefined })}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                />
               </div>
               <div>
-                <label className="bcms-block bcms-text-xs bcms-font-medium bcms-text-gray-500 bcms-mb-1">Max</label>
-                <input type="number" value={field.options?.max ?? ''} onChange={(e) => updateOptions({ max: e.target.value ? Number(e.target.value) : undefined })} className="bcms-w-full bcms-px-3 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg" />
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Max</label>
+                <input
+                  type="number"
+                  value={field.options?.max ?? ''}
+                  onChange={(e) => updateOptions({ max: e.target.value ? Number(e.target.value) : undefined })}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                />
               </div>
               <div>
-                <label className="bcms-block bcms-text-xs bcms-font-medium bcms-text-gray-500 bcms-mb-1">Step</label>
-                <input type="number" value={field.options?.step ?? ''} onChange={(e) => updateOptions({ step: e.target.value ? Number(e.target.value) : undefined })} className="bcms-w-full bcms-px-3 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg" />
+                <label className="block text-sm font-medium text-gray-700 mb-1.5">Step</label>
+                <input
+                  type="number"
+                  value={field.options?.step ?? ''}
+                  onChange={(e) => updateOptions({ step: e.target.value ? Number(e.target.value) : undefined })}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+                />
               </div>
             </div>
           )}
@@ -186,6 +154,34 @@ export function FieldEditor({ field, onChange, onRemove, allModels = [] }: Field
           )}
         </div>
       )}
+
+      {/* Section: Validation */}
+      <div>
+        <h4 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Validation</h4>
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">Help Text</label>
+            <input
+              type="text"
+              value={field.help_text || ''}
+              onChange={(e) => update({ help_text: e.target.value })}
+              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:outline-none transition-all"
+              placeholder="Optional help text shown below the field"
+            />
+          </div>
+
+          <label className="flex items-center gap-3 cursor-pointer group">
+            <input
+              type="checkbox"
+              checked={!!field.required}
+              onChange={(e) => update({ required: e.target.checked })}
+              className="w-4 h-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500/20 focus:ring-offset-0 cursor-pointer"
+            />
+            <span className="text-sm text-gray-700 group-hover:text-gray-900">Required field</span>
+          </label>
+        </div>
+      </div>
     </div>
   );
 }

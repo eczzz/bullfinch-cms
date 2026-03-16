@@ -1,47 +1,90 @@
-import React, { useEffect } from 'react';
-import { CheckCircle, XCircle, X } from 'lucide-react';
+import React, { useEffect, useState } from 'react';
+import { CheckCircle, XCircle, AlertTriangle, Info, X } from 'lucide-react';
 
 interface ToastProps {
-  type: 'success' | 'error';
+  type: 'success' | 'error' | 'warning' | 'info';
   title: string;
   message?: string;
   onClose: () => void;
   duration?: number;
 }
 
+const variantConfig = {
+  success: {
+    icon: CheckCircle,
+    barColor: 'bg-emerald-500',
+    iconColor: 'text-emerald-600',
+    iconBg: 'bg-emerald-50',
+  },
+  error: {
+    icon: XCircle,
+    barColor: 'bg-red-500',
+    iconColor: 'text-red-600',
+    iconBg: 'bg-red-50',
+  },
+  warning: {
+    icon: AlertTriangle,
+    barColor: 'bg-amber-500',
+    iconColor: 'text-amber-600',
+    iconBg: 'bg-amber-50',
+  },
+  info: {
+    icon: Info,
+    barColor: 'bg-blue-500',
+    iconColor: 'text-blue-600',
+    iconBg: 'bg-blue-50',
+  },
+};
+
 export function Toast({ type, title, message, onClose, duration = 4000 }: ToastProps) {
+  const [isExiting, setIsExiting] = useState(false);
+
   useEffect(() => {
-    const timer = setTimeout(onClose, duration);
-    return () => clearTimeout(timer);
+    const exitTimer = setTimeout(() => {
+      setIsExiting(true);
+    }, duration - 300);
+
+    const closeTimer = setTimeout(onClose, duration);
+
+    return () => {
+      clearTimeout(exitTimer);
+      clearTimeout(closeTimer);
+    };
   }, [onClose, duration]);
 
-  const isSuccess = type === 'success';
+  const handleClose = () => {
+    setIsExiting(true);
+    setTimeout(onClose, 200);
+  };
+
+  const config = variantConfig[type];
+  const Icon = config.icon;
 
   return (
     <div
-      className={`bcms-fixed bcms-bottom-6 bcms-right-6 bcms-max-w-sm bcms-z-50 bcms-rounded-lg bcms-shadow-lg bcms-p-4 bcms-border ${
-        isSuccess ? 'bcms-bg-green-50 bcms-border-green-200' : 'bcms-bg-red-50 bcms-border-red-200'
+      className={`fixed top-6 right-6 max-w-sm w-full z-50 bg-white rounded-lg shadow-lg border border-gray-200 overflow-hidden flex transition-all duration-200 ${
+        isExiting ? 'opacity-0 translate-x-4' : 'opacity-100 translate-x-0'
       }`}
-      style={{ animation: 'bcms-slideInUp 0.3s ease-out forwards' }}
+      style={{ animation: isExiting ? undefined : 'toast-in 0.3s ease-out' }}
     >
-      <div className="bcms-flex bcms-items-start bcms-gap-3">
-        {isSuccess ? (
-          <CheckCircle className="bcms-w-5 bcms-h-5 bcms-flex-shrink-0 bcms-mt-0.5 bcms-text-green-600" />
-        ) : (
-          <XCircle className="bcms-w-5 bcms-h-5 bcms-flex-shrink-0 bcms-mt-0.5 bcms-text-red-600" />
-        )}
-        <div className="bcms-flex-1">
-          <h3 className={`bcms-font-medium bcms-text-sm ${isSuccess ? 'bcms-text-green-800' : 'bcms-text-red-800'}`}>
-            {title}
-          </h3>
+      {/* Left color bar */}
+      <div className={`w-1 flex-shrink-0 ${config.barColor}`} />
+
+      <div className="flex items-start gap-3 p-3 flex-1 min-w-0">
+        <div className={`w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 ${config.iconBg}`}>
+          <Icon className={`w-4 h-4 ${config.iconColor}`} />
+        </div>
+        <div className="flex-1 min-w-0 pt-0.5">
+          <p className="text-sm font-medium text-gray-900">{title}</p>
           {message && (
-            <p className={`bcms-text-xs bcms-mt-1 ${isSuccess ? 'bcms-text-green-700' : 'bcms-text-red-700'}`}>
-              {message}
-            </p>
+            <p className="text-xs text-gray-500 mt-0.5">{message}</p>
           )}
         </div>
-        <button onClick={onClose} className={`bcms-flex-shrink-0 bcms-p-1 hover:bcms-opacity-70 bcms-transition ${isSuccess ? 'bcms-text-green-800' : 'bcms-text-red-800'}`}>
-          <X className="bcms-w-4 bcms-h-4" />
+        <button
+          onClick={handleClose}
+          className="flex-shrink-0 p-0.5 rounded hover:bg-gray-100 transition-all duration-150"
+        >
+          <X className="w-3.5 h-3.5 text-gray-400" />
         </button>
       </div>
     </div>

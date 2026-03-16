@@ -1,5 +1,5 @@
 import React from 'react';
-import { AlertTriangle, X } from 'lucide-react';
+import { AlertTriangle, Info, AlertCircle, X } from 'lucide-react';
 
 interface ConfirmationModalProps {
   isOpen: boolean;
@@ -24,36 +24,66 @@ export function ConfirmationModal({
 }: ConfirmationModalProps) {
   if (!isOpen) return null;
 
-  const variantStyles = {
-    danger: { icon: 'bg-red-100 text-red-600', button: 'bg-red-600 hover:bg-red-700 text-white' },
-    warning: { icon: 'bg-yellow-100 text-yellow-600', button: 'bg-yellow-600 hover:bg-yellow-700 text-white' },
-    info: { icon: 'bg-blue-100 text-blue-600', button: 'bg-blue-600 hover:bg-blue-700 text-white' },
+  const variantConfig = {
+    danger: {
+      icon: <AlertTriangle className="w-5 h-5 text-red-600" />,
+      iconBg: 'bg-red-50',
+      button: 'bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm',
+    },
+    warning: {
+      icon: <AlertCircle className="w-5 h-5 text-amber-600" />,
+      iconBg: 'bg-amber-50',
+      button: 'bg-amber-600 hover:bg-amber-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm',
+    },
+    info: {
+      icon: <Info className="w-5 h-5 text-blue-600" />,
+      iconBg: 'bg-blue-50',
+      button: 'bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm',
+    },
   };
 
-  const styles = variantStyles[variant];
+  const config = variantConfig[variant];
 
   return (
-    <div className="bcms-fixed bcms-inset-0 bcms-bg-black/50 bcms-flex bcms-items-center bcms-justify-center bcms-z-50 bcms-p-4">
-      <div className="bcms-bg-white bcms-rounded-lg bcms-shadow-xl bcms-max-w-md bcms-w-full">
-        <div className="bcms-flex bcms-items-start bcms-justify-between bcms-p-6 bcms-pb-4">
-          <div className="bcms-flex bcms-items-start bcms-gap-4">
-            <div className={`bcms-w-12 bcms-h-12 bcms-rounded-full bcms-flex bcms-items-center bcms-justify-center bcms-flex-shrink-0 ${styles.icon}`}>
-              <AlertTriangle className="bcms-w-6 bcms-h-6" />
+    <div
+      className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 p-4"
+      onClick={(e) => { if (e.target === e.currentTarget) onCancel(); }}
+    >
+      <div
+        className="bg-white rounded-xl shadow-lg max-w-md w-full"
+        style={{ animation: 'fade-in-up 0.2s ease-out' }}
+      >
+        {/* Header */}
+        <div className="px-6 pt-6 pb-0 flex items-start justify-between">
+          <div className="flex items-start gap-4">
+            <div className={`w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ${config.iconBg}`}>
+              {config.icon}
             </div>
             <div>
-              <h3 className="bcms-text-lg bcms-font-semibold bcms-text-gray-900">{title}</h3>
-              <p className="bcms-text-sm bcms-text-gray-500 bcms-mt-1">{message}</p>
+              <h3 className="text-base font-semibold text-gray-900">{title}</h3>
+              <p className="text-sm text-gray-500 mt-1">{message}</p>
             </div>
           </div>
-          <button onClick={onCancel} className="bcms-p-1 hover:bcms-bg-gray-100 bcms-rounded-md bcms-transition">
-            <X className="bcms-w-5 bcms-h-5 bcms-text-gray-400" />
+          <button
+            onClick={onCancel}
+            className="p-1 rounded-lg hover:bg-gray-100 transition-all duration-150 flex-shrink-0 -mt-1 -mr-1"
+          >
+            <X className="w-4 h-4 text-gray-400" />
           </button>
         </div>
-        <div className="bcms-flex bcms-items-center bcms-justify-end bcms-gap-3 bcms-px-6 bcms-pb-6">
-          <button onClick={onCancel} className="bcms-px-4 bcms-py-2 bcms-text-sm bcms-text-gray-700 hover:bcms-bg-gray-100 bcms-rounded-md bcms-transition">
+
+        {/* Footer */}
+        <div className="flex items-center justify-end gap-2 px-6 py-4 mt-4 border-t border-gray-100">
+          <button
+            onClick={onCancel}
+            className="bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all duration-150"
+          >
             {cancelLabel}
           </button>
-          <button onClick={onConfirm} className={`bcms-px-4 bcms-py-2 bcms-text-sm bcms-rounded-md bcms-transition ${styles.button}`}>
+          <button
+            onClick={onConfirm}
+            className={`transition-all duration-150 ${config.button}`}
+          >
             {confirmLabel}
           </button>
         </div>

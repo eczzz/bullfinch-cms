@@ -215,7 +215,6 @@ export interface CMSContextValue {
 // ─── Route State ────────────────────────────────────────────────────────────
 
 export type CMSRoute =
-  | { page: 'dashboard' }
   | { page: 'content-models' }
   | { page: 'content-model-editor'; id?: string }
   | { page: 'content-entries'; modelId: string }

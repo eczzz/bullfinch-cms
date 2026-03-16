@@ -1,0 +1,1378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bullfinch CMS — Design System</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+          },
+          colors: {
+            primary: {
+              50: '#eff6ff',
+              100: '#dbeafe',
+              200: '#bfdbfe',
+              300: '#93c5fd',
+              400: '#60a5fa',
+              500: '#3b82f6',
+              600: '#2563eb',
+              700: '#1d4ed8',
+              800: '#1e40af',
+              900: '#1e3a8a',
+              950: '#172554',
+            }
+          },
+          keyframes: {
+            'spin-slow': { to: { transform: 'rotate(360deg)' } },
+            'shimmer': { '100%': { transform: 'translateX(100%)' } },
+            'fade-in-up': {
+              '0%': { opacity: '0', transform: 'translateY(8px)' },
+              '100%': { opacity: '1', transform: 'translateY(0)' },
+            },
+            'toast-in': {
+              '0%': { opacity: '0', transform: 'translateX(100%)' },
+              '100%': { opacity: '1', transform: 'translateX(0)' },
+            },
+          },
+          animation: {
+            'spin-slow': 'spin-slow 1s linear infinite',
+            'shimmer': 'shimmer 2s infinite',
+            'fade-in-up': 'fade-in-up 0.3s ease-out',
+            'toast-in': 'toast-in 0.3s ease-out',
+          }
+        }
+      }
+    }
+  </script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    * { font-family: 'Inter', system-ui, -apple-system, sans-serif; }
+    .dot-grid {
+      background-image: radial-gradient(circle, #d1d5db 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    .skeleton-shimmer {
+      background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+      background-size: 200% 100%;
+      animation: shimmer 2s infinite;
+    }
+    /* Custom select arrow */
+    .custom-select {
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%236b7280' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 40px;
+    }
+    /* Toggle switch */
+    .toggle-track { transition: background-color 0.2s ease; }
+    .toggle-track.active { background-color: #2563eb; }
+    .toggle-thumb { transition: transform 0.2s ease; }
+    .toggle-track.active .toggle-thumb { transform: translateX(20px); }
+    /* Smooth transitions */
+    .transition-all { transition: all 0.15s ease; }
+    /* Scrollbar styling */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #9ca3af; }
+  </style>
+</head>
+<body class="bg-gray-50 text-gray-900 antialiased">
+
+  <!-- Header -->
+  <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+          <i data-lucide="feather" class="w-4 h-4 text-white"></i>
+        </div>
+        <div>
+          <h1 class="text-lg font-semibold tracking-tight text-gray-900">Bullfinch CMS</h1>
+          <p class="text-xs text-gray-400 -mt-0.5">Design System v1.0</p>
+        </div>
+      </div>
+      <nav class="flex items-center gap-1 text-sm">
+        <a href="#colors" class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all">Colors</a>
+        <a href="#typography" class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all">Type</a>
+        <a href="#buttons" class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all">Buttons</a>
+        <a href="#forms" class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all">Forms</a>
+        <a href="#cards" class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all">Cards</a>
+        <a href="#badges" class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all">Badges</a>
+        <a href="#sidebar" class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all">Sidebar</a>
+        <a href="#table" class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all">Table</a>
+        <a href="#modal" class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all">Modal</a>
+        <a href="#toasts" class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all">Toasts</a>
+        <a href="#loading" class="px-3 py-1.5 rounded-md text-gray-500 hover:text-gray-900 hover:bg-gray-100 transition-all">Loading</a>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="dot-grid bg-white border-b border-gray-100">
+    <div class="max-w-7xl mx-auto px-6 py-16">
+      <div class="max-w-2xl">
+        <div class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary-50 text-primary-700 text-xs font-medium mb-4 ring-1 ring-primary-100">
+          <i data-lucide="palette" class="w-3 h-3"></i>
+          Design Foundation
+        </div>
+        <h1 class="text-4xl font-bold tracking-tight text-gray-900 mb-3">Bullfinch CMS Design System</h1>
+        <p class="text-lg text-gray-500 leading-relaxed">The visual language for the Bullfinch content management system. Clean, professional, and information-dense — built for teams that move fast.</p>
+      </div>
+    </div>
+  </section>
+
+  <main class="max-w-7xl mx-auto px-6 py-12 space-y-20">
+
+    <!-- ===================== 1. COLOR PALETTE ===================== -->
+    <section id="colors">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight mb-1">Color Palette</h2>
+        <p class="text-sm text-gray-500">Systematic color tokens for consistent UI expression.</p>
+      </div>
+
+      <!-- Primary -->
+      <div class="mb-8">
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Primary — Blue</h3>
+        <div class="grid grid-cols-10 gap-2">
+          <div><div class="h-12 rounded-lg bg-blue-50 ring-1 ring-inset ring-gray-200"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">50</p></div>
+          <div><div class="h-12 rounded-lg bg-blue-100 ring-1 ring-inset ring-gray-200"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">100</p></div>
+          <div><div class="h-12 rounded-lg bg-blue-200"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">200</p></div>
+          <div><div class="h-12 rounded-lg bg-blue-300"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">300</p></div>
+          <div><div class="h-12 rounded-lg bg-blue-400"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">400</p></div>
+          <div><div class="h-12 rounded-lg bg-blue-500"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">500</p></div>
+          <div><div class="h-12 rounded-lg bg-blue-600"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">600 ★</p></div>
+          <div><div class="h-12 rounded-lg bg-blue-700"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">700</p></div>
+          <div><div class="h-12 rounded-lg bg-blue-800"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">800</p></div>
+          <div><div class="h-12 rounded-lg bg-blue-900"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">900</p></div>
+        </div>
+      </div>
+
+      <!-- Neutrals -->
+      <div class="mb-8">
+        <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Neutrals — Gray</h3>
+        <div class="grid grid-cols-10 gap-2">
+          <div><div class="h-12 rounded-lg bg-gray-50 ring-1 ring-inset ring-gray-200"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">50</p></div>
+          <div><div class="h-12 rounded-lg bg-gray-100 ring-1 ring-inset ring-gray-200"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">100</p></div>
+          <div><div class="h-12 rounded-lg bg-gray-200"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">200</p></div>
+          <div><div class="h-12 rounded-lg bg-gray-300"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">300</p></div>
+          <div><div class="h-12 rounded-lg bg-gray-400"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">400</p></div>
+          <div><div class="h-12 rounded-lg bg-gray-500"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">500</p></div>
+          <div><div class="h-12 rounded-lg bg-gray-600"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">600</p></div>
+          <div><div class="h-12 rounded-lg bg-gray-700"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">700</p></div>
+          <div><div class="h-12 rounded-lg bg-gray-800"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">800</p></div>
+          <div><div class="h-12 rounded-lg bg-gray-900"></div><p class="mt-1.5 text-xs text-gray-500 font-mono">900</p></div>
+        </div>
+      </div>
+
+      <!-- Semantic -->
+      <div class="grid grid-cols-3 gap-6">
+        <div>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Success — Green</h3>
+          <div class="grid grid-cols-5 gap-2">
+            <div><div class="h-10 rounded-lg bg-emerald-50 ring-1 ring-inset ring-gray-200"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">50</p></div>
+            <div><div class="h-10 rounded-lg bg-emerald-100"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">100</p></div>
+            <div><div class="h-10 rounded-lg bg-emerald-300"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">300</p></div>
+            <div><div class="h-10 rounded-lg bg-emerald-500"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">500</p></div>
+            <div><div class="h-10 rounded-lg bg-emerald-700"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">700</p></div>
+          </div>
+        </div>
+        <div>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Warning — Amber</h3>
+          <div class="grid grid-cols-5 gap-2">
+            <div><div class="h-10 rounded-lg bg-amber-50 ring-1 ring-inset ring-gray-200"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">50</p></div>
+            <div><div class="h-10 rounded-lg bg-amber-100"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">100</p></div>
+            <div><div class="h-10 rounded-lg bg-amber-300"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">300</p></div>
+            <div><div class="h-10 rounded-lg bg-amber-500"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">500</p></div>
+            <div><div class="h-10 rounded-lg bg-amber-700"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">700</p></div>
+          </div>
+        </div>
+        <div>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Danger — Red</h3>
+          <div class="grid grid-cols-5 gap-2">
+            <div><div class="h-10 rounded-lg bg-red-50 ring-1 ring-inset ring-gray-200"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">50</p></div>
+            <div><div class="h-10 rounded-lg bg-red-100"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">100</p></div>
+            <div><div class="h-10 rounded-lg bg-red-300"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">300</p></div>
+            <div><div class="h-10 rounded-lg bg-red-500"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">500</p></div>
+            <div><div class="h-10 rounded-lg bg-red-700"></div><p class="mt-1 text-[10px] text-gray-400 font-mono">700</p></div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 2. TYPOGRAPHY ===================== -->
+    <section id="typography">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight mb-1">Typography</h2>
+        <p class="text-sm text-gray-500">Inter typeface with carefully balanced weights and tracking.</p>
+      </div>
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <div class="divide-y divide-gray-100">
+          <div class="px-6 py-5 flex items-baseline justify-between">
+            <h1 class="text-4xl font-bold tracking-tight">Heading 1</h1>
+            <code class="text-xs text-gray-400 font-mono">4xl / bold / tracking-tight</code>
+          </div>
+          <div class="px-6 py-5 flex items-baseline justify-between">
+            <h2 class="text-3xl font-bold tracking-tight">Heading 2</h2>
+            <code class="text-xs text-gray-400 font-mono">3xl / bold / tracking-tight</code>
+          </div>
+          <div class="px-6 py-5 flex items-baseline justify-between">
+            <h3 class="text-2xl font-semibold tracking-tight">Heading 3</h3>
+            <code class="text-xs text-gray-400 font-mono">2xl / semibold / tracking-tight</code>
+          </div>
+          <div class="px-6 py-5 flex items-baseline justify-between">
+            <h4 class="text-xl font-semibold">Heading 4</h4>
+            <code class="text-xs text-gray-400 font-mono">xl / semibold</code>
+          </div>
+          <div class="px-6 py-5 flex items-baseline justify-between">
+            <h5 class="text-lg font-medium">Heading 5</h5>
+            <code class="text-xs text-gray-400 font-mono">lg / medium</code>
+          </div>
+          <div class="px-6 py-5 flex items-baseline justify-between">
+            <h6 class="text-base font-medium">Heading 6</h6>
+            <code class="text-xs text-gray-400 font-mono">base / medium</code>
+          </div>
+          <div class="px-6 py-5 flex items-baseline justify-between">
+            <p class="text-base text-gray-700">Body text — The quick brown fox jumps over the lazy dog.</p>
+            <code class="text-xs text-gray-400 font-mono">base / normal / gray-700</code>
+          </div>
+          <div class="px-6 py-5 flex items-baseline justify-between">
+            <p class="text-sm text-gray-500">Secondary text — Supporting copy and descriptions.</p>
+            <code class="text-xs text-gray-400 font-mono">sm / normal / gray-500</code>
+          </div>
+          <div class="px-6 py-5 flex items-baseline justify-between">
+            <p class="text-xs text-gray-400">Small text — Timestamps, metadata, captions.</p>
+            <code class="text-xs text-gray-400 font-mono">xs / normal / gray-400</code>
+          </div>
+          <div class="px-6 py-5 flex items-baseline justify-between">
+            <label class="text-xs font-semibold text-gray-400 uppercase tracking-wider">Label / Overline</label>
+            <code class="text-xs text-gray-400 font-mono">xs / semibold / uppercase / tracking-wider</code>
+          </div>
+          <div class="px-6 py-5 flex items-baseline justify-between">
+            <code class="text-sm font-mono text-gray-600 bg-gray-100 px-2 py-0.5 rounded">Code / Mono</code>
+            <code class="text-xs text-gray-400 font-mono">sm / mono / gray-600 / bg-gray-100</code>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 3. BUTTONS ===================== -->
+    <section id="buttons">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight mb-1">Buttons</h2>
+        <p class="text-sm text-gray-500">Primary actions, secondary options, ghost interactions, and danger confirmations.</p>
+      </div>
+
+      <div class="space-y-8">
+        <!-- Sizes -->
+        <div>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Sizes</h3>
+          <div class="flex items-end gap-3">
+            <button class="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-medium rounded-md bg-primary-600 text-white hover:bg-primary-700 shadow-sm transition-all">
+              <i data-lucide="plus" class="w-3 h-3"></i> Small
+            </button>
+            <button class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 shadow-sm transition-all">
+              <i data-lucide="plus" class="w-4 h-4"></i> Medium
+            </button>
+            <button class="inline-flex items-center gap-2 px-5 py-2.5 text-base font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 shadow-sm transition-all">
+              <i data-lucide="plus" class="w-5 h-5"></i> Large
+            </button>
+          </div>
+        </div>
+
+        <!-- Variants -->
+        <div>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Variants</h3>
+          <div class="flex flex-wrap items-center gap-3">
+            <button class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 shadow-sm transition-all">
+              <i data-lucide="check" class="w-4 h-4"></i> Primary
+            </button>
+            <button class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-white text-gray-700 hover:bg-gray-50 ring-1 ring-gray-200 shadow-sm transition-all">
+              <i data-lucide="settings" class="w-4 h-4"></i> Secondary
+            </button>
+            <button class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all">
+              <i data-lucide="eye" class="w-4 h-4"></i> Ghost
+            </button>
+            <button class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 shadow-sm transition-all">
+              <i data-lucide="trash-2" class="w-4 h-4"></i> Danger
+            </button>
+            <button class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 ring-1 ring-red-200 transition-all">
+              <i data-lucide="trash-2" class="w-4 h-4"></i> Danger Outline
+            </button>
+            <button class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-gray-100 text-gray-400 cursor-not-allowed shadow-sm" disabled>
+              <i data-lucide="lock" class="w-4 h-4"></i> Disabled
+            </button>
+          </div>
+        </div>
+
+        <!-- Icon-only -->
+        <div>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Icon Only</h3>
+          <div class="flex items-center gap-2">
+            <button class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-primary-600 text-white hover:bg-primary-700 shadow-sm transition-all">
+              <i data-lucide="plus" class="w-4 h-4"></i>
+            </button>
+            <button class="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white text-gray-500 hover:text-gray-700 hover:bg-gray-50 ring-1 ring-gray-200 shadow-sm transition-all">
+              <i data-lucide="more-horizontal" class="w-4 h-4"></i>
+            </button>
+            <button class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
+              <i data-lucide="x" class="w-4 h-4"></i>
+            </button>
+            <button class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
+              <i data-lucide="copy" class="w-4 h-4"></i>
+            </button>
+            <button class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all">
+              <i data-lucide="pencil" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Button Group -->
+        <div>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Button Group</h3>
+          <div class="inline-flex rounded-lg ring-1 ring-gray-200 shadow-sm overflow-hidden">
+            <button class="px-3 py-2 text-sm font-medium bg-gray-50 text-gray-900 border-r border-gray-200 hover:bg-gray-100 transition-all">
+              <i data-lucide="layout-grid" class="w-4 h-4"></i>
+            </button>
+            <button class="px-3 py-2 text-sm font-medium bg-white text-gray-500 border-r border-gray-200 hover:bg-gray-50 transition-all">
+              <i data-lucide="list" class="w-4 h-4"></i>
+            </button>
+            <button class="px-3 py-2 text-sm font-medium bg-white text-gray-500 hover:bg-gray-50 transition-all">
+              <i data-lucide="kanban" class="w-4 h-4"></i>
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 4. FORM INPUTS ===================== -->
+    <section id="forms">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight mb-1">Form Inputs</h2>
+        <p class="text-sm text-gray-500">Clean, accessible inputs with subtle focus rings and consistent sizing.</p>
+      </div>
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+        <div class="grid grid-cols-2 gap-8">
+          <!-- Text Input -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Page Title</label>
+            <input type="text" placeholder="Enter page title…" value="Getting Started Guide"
+              class="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+            <p class="mt-1.5 text-xs text-gray-400">The title displayed in navigation and browser tabs.</p>
+          </div>
+
+          <!-- Search Input -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Search</label>
+            <div class="relative">
+              <i data-lucide="search" class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"></i>
+              <input type="text" placeholder="Search pages, assets, users…"
+                class="w-full pl-9 pr-3 py-2 text-sm rounded-lg border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all">
+              <kbd class="absolute right-3 top-1/2 -translate-y-1/2 text-[10px] font-mono text-gray-400 bg-gray-100 px-1.5 py-0.5 rounded border border-gray-200">⌘K</kbd>
+            </div>
+          </div>
+
+          <!-- Textarea -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Description</label>
+            <textarea rows="3" placeholder="Add a brief description…"
+              class="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all resize-none">A comprehensive guide to help new users get started with the platform quickly and efficiently.</textarea>
+          </div>
+
+          <!-- Custom Select -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1.5">Status</label>
+            <select class="custom-select w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all cursor-pointer">
+              <option>Draft</option>
+              <option selected>Published</option>
+              <option>Archived</option>
+              <option>Scheduled</option>
+            </select>
+            <div class="mt-4">
+              <label class="block text-sm font-medium text-gray-700 mb-1.5">Category</label>
+              <select class="custom-select w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all cursor-pointer">
+                <option>Documentation</option>
+                <option>Blog</option>
+                <option>Changelog</option>
+              </select>
+            </div>
+          </div>
+
+          <!-- Checkboxes -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-3">Options</label>
+            <div class="space-y-3">
+              <label class="flex items-center gap-3 cursor-pointer group">
+                <input type="checkbox" checked class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/20 focus:ring-offset-0 cursor-pointer">
+                <span class="text-sm text-gray-700 group-hover:text-gray-900">Include in sitemap</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer group">
+                <input type="checkbox" class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/20 focus:ring-offset-0 cursor-pointer">
+                <span class="text-sm text-gray-700 group-hover:text-gray-900">Allow comments</span>
+              </label>
+              <label class="flex items-center gap-3 cursor-pointer group">
+                <input type="checkbox" checked class="w-4 h-4 rounded border-gray-300 text-primary-600 focus:ring-primary-500/20 focus:ring-offset-0 cursor-pointer">
+                <span class="text-sm text-gray-700 group-hover:text-gray-900">Show in navigation</span>
+              </label>
+            </div>
+          </div>
+
+          <!-- Toggle Switches -->
+          <div>
+            <label class="block text-sm font-medium text-gray-700 mb-3">Toggles</label>
+            <div class="space-y-4">
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm text-gray-700">Published</p>
+                  <p class="text-xs text-gray-400">Make this page visible to the public</p>
+                </div>
+                <button onclick="this.querySelector('.toggle-track').classList.toggle('active')" class="relative">
+                  <div class="toggle-track active w-10 h-[22px] bg-gray-200 rounded-full p-[2px] cursor-pointer">
+                    <div class="toggle-thumb w-[18px] h-[18px] bg-white rounded-full shadow-sm"></div>
+                  </div>
+                </button>
+              </div>
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm text-gray-700">Password Protected</p>
+                  <p class="text-xs text-gray-400">Require a password to view</p>
+                </div>
+                <button onclick="this.querySelector('.toggle-track').classList.toggle('active')" class="relative">
+                  <div class="toggle-track w-10 h-[22px] bg-gray-200 rounded-full p-[2px] cursor-pointer">
+                    <div class="toggle-thumb w-[18px] h-[18px] bg-white rounded-full shadow-sm"></div>
+                  </div>
+                </button>
+              </div>
+              <div class="flex items-center justify-between">
+                <div>
+                  <p class="text-sm text-gray-700">SEO Indexing</p>
+                  <p class="text-xs text-gray-400">Allow search engines to index</p>
+                </div>
+                <button onclick="this.querySelector('.toggle-track').classList.toggle('active')" class="relative">
+                  <div class="toggle-track active w-10 h-[22px] bg-gray-200 rounded-full p-[2px] cursor-pointer">
+                    <div class="toggle-thumb w-[18px] h-[18px] bg-white rounded-full shadow-sm"></div>
+                  </div>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 5. CARDS ===================== -->
+    <section id="cards">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight mb-1">Cards</h2>
+        <p class="text-sm text-gray-500">Content containers with subtle elevation and clean borders.</p>
+      </div>
+
+      <div class="grid grid-cols-3 gap-6">
+        <!-- Content Card -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group">
+          <div class="p-5">
+            <div class="flex items-start justify-between mb-3">
+              <div class="w-9 h-9 rounded-lg bg-primary-50 flex items-center justify-center">
+                <i data-lucide="file-text" class="w-4 h-4 text-primary-600"></i>
+              </div>
+              <button class="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-gray-100 transition-all">
+                <i data-lucide="more-horizontal" class="w-4 h-4 text-gray-400"></i>
+              </button>
+            </div>
+            <h3 class="text-sm font-semibold text-gray-900 mb-1">Getting Started Guide</h3>
+            <p class="text-xs text-gray-500 mb-4 line-clamp-2">A comprehensive walkthrough for new users covering account setup, team management, and first project creation.</p>
+            <div class="flex items-center justify-between">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/50">Published</span>
+              <span class="text-[10px] text-gray-400">Updated 2h ago</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Stat Card -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-5">
+          <div class="flex items-center justify-between mb-4">
+            <span class="text-xs font-medium text-gray-500">Total Pages</span>
+            <div class="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center">
+              <i data-lucide="layers" class="w-4 h-4 text-blue-600"></i>
+            </div>
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span class="text-3xl font-bold tracking-tight text-gray-900">2,847</span>
+            <span class="inline-flex items-center gap-0.5 text-xs font-medium text-emerald-600">
+              <i data-lucide="trending-up" class="w-3 h-3"></i>
+              12.5%
+            </span>
+          </div>
+          <p class="text-xs text-gray-400 mt-1">+340 from last month</p>
+          <!-- Mini chart placeholder -->
+          <div class="mt-4 flex items-end gap-1 h-8">
+            <div class="flex-1 bg-primary-100 rounded-sm" style="height: 40%"></div>
+            <div class="flex-1 bg-primary-100 rounded-sm" style="height: 60%"></div>
+            <div class="flex-1 bg-primary-100 rounded-sm" style="height: 45%"></div>
+            <div class="flex-1 bg-primary-200 rounded-sm" style="height: 80%"></div>
+            <div class="flex-1 bg-primary-200 rounded-sm" style="height: 65%"></div>
+            <div class="flex-1 bg-primary-300 rounded-sm" style="height: 90%"></div>
+            <div class="flex-1 bg-primary-500 rounded-sm" style="height: 100%"></div>
+          </div>
+        </div>
+
+        <!-- Media Card -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden hover:shadow-md hover:border-gray-300 transition-all cursor-pointer group">
+          <div class="h-32 bg-gradient-to-br from-primary-400 via-primary-500 to-indigo-600 relative">
+            <div class="absolute inset-0 dot-grid opacity-20"></div>
+            <div class="absolute bottom-3 left-3">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-white/90 text-gray-700 backdrop-blur-sm">
+                <i data-lucide="image" class="w-3 h-3"></i>
+                Hero Image
+              </span>
+            </div>
+          </div>
+          <div class="p-4">
+            <h3 class="text-sm font-semibold text-gray-900 mb-1">Product Launch Banner</h3>
+            <p class="text-xs text-gray-500">1920 × 1080 · PNG · 2.4 MB</p>
+            <div class="flex items-center gap-2 mt-3">
+              <div class="w-5 h-5 rounded-full bg-gray-200 ring-2 ring-white"></div>
+              <span class="text-xs text-gray-500">Kyle R. · 3 days ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Additional stat cards row -->
+      <div class="grid grid-cols-4 gap-4 mt-6">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-emerald-50 flex items-center justify-center">
+              <i data-lucide="check-circle" class="w-5 h-5 text-emerald-600"></i>
+            </div>
+            <div>
+              <p class="text-xl font-bold text-gray-900">189</p>
+              <p class="text-xs text-gray-500">Published</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-amber-50 flex items-center justify-center">
+              <i data-lucide="pencil" class="w-5 h-5 text-amber-600"></i>
+            </div>
+            <div>
+              <p class="text-xl font-bold text-gray-900">47</p>
+              <p class="text-xs text-gray-500">Drafts</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-blue-50 flex items-center justify-center">
+              <i data-lucide="users" class="w-5 h-5 text-blue-600"></i>
+            </div>
+            <div>
+              <p class="text-xl font-bold text-gray-900">12</p>
+              <p class="text-xs text-gray-500">Team Members</p>
+            </div>
+          </div>
+        </div>
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-purple-50 flex items-center justify-center">
+              <i data-lucide="globe" class="w-5 h-5 text-purple-600"></i>
+            </div>
+            <div>
+              <p class="text-xl font-bold text-gray-900">3</p>
+              <p class="text-xs text-gray-500">Environments</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 6. BADGES / PILLS ===================== -->
+    <section id="badges">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight mb-1">Badges & Pills</h2>
+        <p class="text-sm text-gray-500">Status indicators and role identifiers with semantic color coding.</p>
+      </div>
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-8 space-y-6">
+        <!-- Status Badges -->
+        <div>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Content Status</h3>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 ring-1 ring-amber-200/60">
+              <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+              Draft
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/60">
+              <span class="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+              Published
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 ring-1 ring-gray-200/60">
+              <span class="w-1.5 h-1.5 rounded-full bg-gray-400"></span>
+              Archived
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 ring-1 ring-blue-200/60">
+              <span class="w-1.5 h-1.5 rounded-full bg-blue-500"></span>
+              Scheduled
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700 ring-1 ring-red-200/60">
+              <span class="w-1.5 h-1.5 rounded-full bg-red-500"></span>
+              Unpublished
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 ring-1 ring-purple-200/60">
+              <span class="w-1.5 h-1.5 rounded-full bg-purple-500"></span>
+              In Review
+            </span>
+          </div>
+        </div>
+
+        <!-- Role Badges -->
+        <div>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">User Roles</h3>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-purple-50 text-purple-700 ring-1 ring-purple-200/60">
+              <i data-lucide="shield" class="w-3 h-3"></i>
+              Admin
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-blue-50 text-blue-700 ring-1 ring-blue-200/60">
+              <i data-lucide="pencil" class="w-3 h-3"></i>
+              Editor
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-600 ring-1 ring-gray-200/60">
+              <i data-lucide="eye" class="w-3 h-3"></i>
+              Viewer
+            </span>
+            <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700 ring-1 ring-amber-200/60">
+              <i data-lucide="user" class="w-3 h-3"></i>
+              Contributor
+            </span>
+          </div>
+        </div>
+
+        <!-- Plain tags -->
+        <div>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Tags</h3>
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600 ring-1 ring-gray-200/60">marketing</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600 ring-1 ring-gray-200/60">product</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-gray-100 text-gray-600 ring-1 ring-gray-200/60">changelog</span>
+            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium bg-primary-50 text-primary-700 ring-1 ring-primary-200/60">featured</span>
+            <button class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-xs font-medium text-gray-400 hover:text-gray-600 hover:bg-gray-50 border border-dashed border-gray-300 transition-all">
+              <i data-lucide="plus" class="w-3 h-3"></i> Add tag
+            </button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 7. SIDEBAR PREVIEW ===================== -->
+    <section id="sidebar">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight mb-1">Sidebar Navigation</h2>
+        <p class="text-sm text-gray-500">Dark sidebar with icon navigation, active states, and collapsible sections.</p>
+      </div>
+
+      <div class="flex gap-6 h-[520px]">
+        <!-- Sidebar -->
+        <div class="w-60 bg-gray-900 rounded-xl overflow-hidden flex flex-col shadow-lg">
+          <!-- Logo area -->
+          <div class="px-4 py-4 flex items-center gap-2.5 border-b border-gray-800">
+            <div class="w-7 h-7 bg-primary-600 rounded-lg flex items-center justify-center flex-shrink-0">
+              <i data-lucide="feather" class="w-3.5 h-3.5 text-white"></i>
+            </div>
+            <div>
+              <p class="text-sm font-semibold text-white">Bullfinch CMS</p>
+              <p class="text-[10px] text-gray-500">bullfinch.io</p>
+            </div>
+          </div>
+
+          <!-- Nav -->
+          <nav class="flex-1 px-3 py-3 space-y-0.5 overflow-y-auto">
+            <a href="#" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-primary-600/20 text-primary-400 text-sm font-medium">
+              <i data-lucide="layout-dashboard" class="w-4 h-4"></i>
+              Dashboard
+            </a>
+            <a href="#" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 text-sm transition-all">
+              <i data-lucide="file-text" class="w-4 h-4"></i>
+              Pages
+              <span class="ml-auto text-[10px] bg-gray-800 text-gray-400 px-1.5 py-0.5 rounded-full">236</span>
+            </a>
+            <a href="#" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 text-sm transition-all">
+              <i data-lucide="image" class="w-4 h-4"></i>
+              Media Library
+            </a>
+            <a href="#" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 text-sm transition-all">
+              <i data-lucide="boxes" class="w-4 h-4"></i>
+              Components
+            </a>
+            <a href="#" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 text-sm transition-all">
+              <i data-lucide="git-branch" class="w-4 h-4"></i>
+              Versions
+            </a>
+
+            <div class="pt-3 pb-1">
+              <p class="px-2.5 text-[10px] font-semibold text-gray-600 uppercase tracking-wider">Settings</p>
+            </div>
+            <a href="#" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 text-sm transition-all">
+              <i data-lucide="users" class="w-4 h-4"></i>
+              Team
+            </a>
+            <a href="#" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 text-sm transition-all">
+              <i data-lucide="globe" class="w-4 h-4"></i>
+              Domains
+            </a>
+            <a href="#" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 text-sm transition-all">
+              <i data-lucide="webhook" class="w-4 h-4"></i>
+              Integrations
+            </a>
+            <a href="#" class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-gray-400 hover:text-gray-200 hover:bg-gray-800 text-sm transition-all">
+              <i data-lucide="settings" class="w-4 h-4"></i>
+              Settings
+            </a>
+          </nav>
+
+          <!-- User area -->
+          <div class="px-3 py-3 border-t border-gray-800">
+            <div class="flex items-center gap-2.5 px-2.5 py-2 rounded-lg hover:bg-gray-800 cursor-pointer transition-all">
+              <div class="w-7 h-7 rounded-full bg-gradient-to-br from-primary-400 to-indigo-500 flex items-center justify-center text-[10px] font-bold text-white">KR</div>
+              <div class="flex-1 min-w-0">
+                <p class="text-xs font-medium text-gray-200 truncate">Kyle Rutten</p>
+                <p class="text-[10px] text-gray-500 truncate">kyle@bullfinch.io</p>
+              </div>
+              <i data-lucide="chevrons-up-down" class="w-3.5 h-3.5 text-gray-600"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Page content preview -->
+        <div class="flex-1 bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+          <div class="border-b border-gray-100 px-6 py-3 flex items-center justify-between">
+            <div class="flex items-center gap-2 text-sm">
+              <span class="text-gray-400">Pages</span>
+              <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-300"></i>
+              <span class="text-gray-400">Documentation</span>
+              <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-300"></i>
+              <span class="text-gray-900 font-medium">Getting Started</span>
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/50">Published</span>
+              <button class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 shadow-sm transition-all">
+                <i data-lucide="save" class="w-3 h-3"></i> Save
+              </button>
+            </div>
+          </div>
+          <div class="p-6">
+            <div class="max-w-xl">
+              <h1 class="text-2xl font-bold tracking-tight text-gray-900 mb-2">Getting Started Guide</h1>
+              <p class="text-sm text-gray-500 mb-6">Last edited by Kyle R. · 2 hours ago</p>
+              <div class="prose prose-sm text-gray-600">
+                <p class="leading-relaxed">Welcome to Bullfinch CMS. This guide will walk you through setting up your first project, inviting team members, and publishing your first page.</p>
+                <div class="mt-4 p-4 rounded-lg bg-blue-50 border border-blue-100">
+                  <div class="flex gap-2">
+                    <i data-lucide="info" class="w-4 h-4 text-blue-500 mt-0.5 flex-shrink-0"></i>
+                    <div>
+                      <p class="text-sm font-medium text-blue-800">Pro tip</p>
+                      <p class="text-xs text-blue-600 mt-0.5">Use keyboard shortcuts to speed up your workflow. Press <kbd class="px-1 py-0.5 bg-blue-100 rounded text-[10px] font-mono">⌘K</kbd> to open the command palette.</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 8. TABLE PREVIEW ===================== -->
+    <section id="table">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight mb-1">Data Table</h2>
+        <p class="text-sm text-gray-500">Clean, scannable tables with hover states and inline actions.</p>
+      </div>
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
+        <!-- Table toolbar -->
+        <div class="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+          <div class="flex items-center gap-2">
+            <div class="relative">
+              <i data-lucide="search" class="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400"></i>
+              <input type="text" placeholder="Filter pages…" class="pl-8 pr-3 py-1.5 text-xs rounded-lg border border-gray-200 bg-white focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500 transition-all w-52">
+            </div>
+            <button class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-50 ring-1 ring-gray-200 transition-all">
+              <i data-lucide="filter" class="w-3 h-3"></i> Filter
+            </button>
+            <button class="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs font-medium rounded-lg text-gray-500 hover:text-gray-700 hover:bg-gray-50 ring-1 ring-gray-200 transition-all">
+              <i data-lucide="arrow-up-down" class="w-3 h-3"></i> Sort
+            </button>
+          </div>
+          <button class="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded-lg bg-primary-600 text-white hover:bg-primary-700 shadow-sm transition-all">
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i> New Page
+          </button>
+        </div>
+
+        <!-- Table -->
+        <table class="w-full">
+          <thead>
+            <tr class="border-b border-gray-100">
+              <th class="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">
+                <label class="flex items-center gap-3">
+                  <input type="checkbox" class="w-3.5 h-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500/20">
+                  Title
+                </label>
+              </th>
+              <th class="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Status</th>
+              <th class="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Author</th>
+              <th class="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">Updated</th>
+              <th class="text-left px-5 py-2.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider w-10"></th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-50">
+            <tr class="hover:bg-gray-50/50 transition-colors group">
+              <td class="px-5 py-3">
+                <label class="flex items-center gap-3">
+                  <input type="checkbox" class="w-3.5 h-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500/20">
+                  <div>
+                    <p class="text-sm font-medium text-gray-900">Getting Started Guide</p>
+                    <p class="text-[10px] text-gray-400">/docs/getting-started</p>
+                  </div>
+                </label>
+              </td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-700 ring-1 ring-emerald-200/50">Published</span>
+              </td>
+              <td class="px-5 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-5 h-5 rounded-full bg-gradient-to-br from-primary-400 to-indigo-500 flex items-center justify-center text-[8px] font-bold text-white">KR</div>
+                  <span class="text-xs text-gray-600">Kyle R.</span>
+                </div>
+              </td>
+              <td class="px-5 py-3 text-xs text-gray-500">2 hours ago</td>
+              <td class="px-5 py-3">
+                <button class="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-gray-100 transition-all">
+                  <i data-lucide="more-horizontal" class="w-4 h-4 text-gray-400"></i>
+                </button>
+              </td>
+            </tr>
+            <tr class="hover:bg-gray-50/50 transition-colors group">
+              <td class="px-5 py-3">
+                <label class="flex items-center gap-3">
+                  <input type="checkbox" class="w-3.5 h-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500/20">
+                  <div>
+                    <p class="text-sm font-medium text-gray-900">API Reference v2</p>
+                    <p class="text-[10px] text-gray-400">/docs/api-reference</p>
+                  </div>
+                </label>
+              </td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-amber-50 text-amber-700 ring-1 ring-amber-200/50">Draft</span>
+              </td>
+              <td class="px-5 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-5 h-5 rounded-full bg-gradient-to-br from-emerald-400 to-teal-500 flex items-center justify-center text-[8px] font-bold text-white">RP</div>
+                  <span class="text-xs text-gray-600">Ryan P.</span>
+                </div>
+              </td>
+              <td class="px-5 py-3 text-xs text-gray-500">Yesterday</td>
+              <td class="px-5 py-3">
+                <button class="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-gray-100 transition-all">
+                  <i data-lucide="more-horizontal" class="w-4 h-4 text-gray-400"></i>
+                </button>
+              </td>
+            </tr>
+            <tr class="hover:bg-gray-50/50 transition-colors group">
+              <td class="px-5 py-3">
+                <label class="flex items-center gap-3">
+                  <input type="checkbox" class="w-3.5 h-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500/20">
+                  <div>
+                    <p class="text-sm font-medium text-gray-900">Changelog — March 2026</p>
+                    <p class="text-[10px] text-gray-400">/changelog/2026-03</p>
+                  </div>
+                </label>
+              </td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 ring-1 ring-blue-200/50">Scheduled</span>
+              </td>
+              <td class="px-5 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-5 h-5 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 flex items-center justify-center text-[8px] font-bold text-white">KT</div>
+                  <span class="text-xs text-gray-600">Katie R.</span>
+                </div>
+              </td>
+              <td class="px-5 py-3 text-xs text-gray-500">3 days ago</td>
+              <td class="px-5 py-3">
+                <button class="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-gray-100 transition-all">
+                  <i data-lucide="more-horizontal" class="w-4 h-4 text-gray-400"></i>
+                </button>
+              </td>
+            </tr>
+            <tr class="hover:bg-gray-50/50 transition-colors group">
+              <td class="px-5 py-3">
+                <label class="flex items-center gap-3">
+                  <input type="checkbox" class="w-3.5 h-3.5 rounded border-gray-300 text-primary-600 focus:ring-primary-500/20">
+                  <div>
+                    <p class="text-sm font-medium text-gray-900">Privacy Policy</p>
+                    <p class="text-[10px] text-gray-400">/legal/privacy</p>
+                  </div>
+                </label>
+              </td>
+              <td class="px-5 py-3">
+                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-gray-100 text-gray-600 ring-1 ring-gray-200/50">Archived</span>
+              </td>
+              <td class="px-5 py-3">
+                <div class="flex items-center gap-2">
+                  <div class="w-5 h-5 rounded-full bg-gradient-to-br from-primary-400 to-indigo-500 flex items-center justify-center text-[8px] font-bold text-white">KR</div>
+                  <span class="text-xs text-gray-600">Kyle R.</span>
+                </div>
+              </td>
+              <td class="px-5 py-3 text-xs text-gray-500">2 weeks ago</td>
+              <td class="px-5 py-3">
+                <button class="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-gray-100 transition-all">
+                  <i data-lucide="more-horizontal" class="w-4 h-4 text-gray-400"></i>
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+
+        <!-- Pagination -->
+        <div class="px-5 py-3 border-t border-gray-100 flex items-center justify-between">
+          <p class="text-xs text-gray-500">Showing <span class="font-medium text-gray-700">1–4</span> of <span class="font-medium text-gray-700">236</span> pages</p>
+          <div class="flex items-center gap-1">
+            <button class="px-2.5 py-1 text-xs font-medium rounded-md text-gray-400 cursor-not-allowed">Previous</button>
+            <button class="px-2.5 py-1 text-xs font-medium rounded-md bg-primary-50 text-primary-700 ring-1 ring-primary-200/50">1</button>
+            <button class="px-2.5 py-1 text-xs font-medium rounded-md text-gray-600 hover:bg-gray-50">2</button>
+            <button class="px-2.5 py-1 text-xs font-medium rounded-md text-gray-600 hover:bg-gray-50">3</button>
+            <span class="text-xs text-gray-400">…</span>
+            <button class="px-2.5 py-1 text-xs font-medium rounded-md text-gray-600 hover:bg-gray-50">59</button>
+            <button class="px-2.5 py-1 text-xs font-medium rounded-md text-gray-600 hover:bg-gray-50">Next</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 9. MODAL PREVIEW ===================== -->
+    <section id="modal">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight mb-1">Modal</h2>
+        <p class="text-sm text-gray-500">Centered dialog with backdrop overlay for focused interactions.</p>
+      </div>
+
+      <!-- Modal Preview Container -->
+      <div class="relative bg-gray-100 rounded-xl overflow-hidden h-[420px] border border-gray-200">
+        <!-- Fake blurred background -->
+        <div class="absolute inset-0 flex items-center justify-center">
+          <div class="w-full h-full bg-gray-50 p-8 opacity-50">
+            <div class="h-4 w-48 bg-gray-200 rounded mb-3"></div>
+            <div class="h-3 w-72 bg-gray-200 rounded mb-6"></div>
+            <div class="grid grid-cols-3 gap-4">
+              <div class="h-24 bg-gray-200 rounded-lg"></div>
+              <div class="h-24 bg-gray-200 rounded-lg"></div>
+              <div class="h-24 bg-gray-200 rounded-lg"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Overlay -->
+        <div class="absolute inset-0 bg-gray-900/50 backdrop-blur-sm"></div>
+        <!-- Modal -->
+        <div class="absolute inset-0 flex items-center justify-center p-8">
+          <div class="bg-white rounded-xl shadow-2xl w-full max-w-md animate-fade-in-up border border-gray-200">
+            <!-- Header -->
+            <div class="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+              <div>
+                <h3 class="text-base font-semibold text-gray-900">Delete Page</h3>
+                <p class="text-xs text-gray-500 mt-0.5">This action cannot be undone.</p>
+              </div>
+              <button class="p-1 rounded-md hover:bg-gray-100 transition-all">
+                <i data-lucide="x" class="w-4 h-4 text-gray-400"></i>
+              </button>
+            </div>
+            <!-- Body -->
+            <div class="px-6 py-5">
+              <div class="flex gap-3">
+                <div class="w-10 h-10 rounded-full bg-red-50 flex items-center justify-center flex-shrink-0">
+                  <i data-lucide="alert-triangle" class="w-5 h-5 text-red-500"></i>
+                </div>
+                <div>
+                  <p class="text-sm text-gray-700">Are you sure you want to delete <span class="font-semibold">"Getting Started Guide"</span>?</p>
+                  <p class="text-xs text-gray-500 mt-1.5">This will permanently remove the page and all associated revisions. Team members will no longer have access.</p>
+                </div>
+              </div>
+              <div class="mt-4">
+                <label class="block text-xs font-medium text-gray-700 mb-1.5">Type "delete" to confirm</label>
+                <input type="text" placeholder="delete"
+                  class="w-full px-3 py-2 text-sm rounded-lg border border-gray-200 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-400 transition-all">
+              </div>
+            </div>
+            <!-- Footer -->
+            <div class="px-6 py-4 border-t border-gray-100 flex items-center justify-end gap-2">
+              <button class="px-4 py-2 text-sm font-medium rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all">Cancel</button>
+              <button class="px-4 py-2 text-sm font-medium rounded-lg bg-red-600 text-white hover:bg-red-700 shadow-sm transition-all">Delete Page</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 10. TOASTS / ALERTS ===================== -->
+    <section id="toasts">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight mb-1">Toasts & Alerts</h2>
+        <p class="text-sm text-gray-500">Notification banners and floating toast messages for feedback.</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-6">
+        <!-- Inline Alerts -->
+        <div class="space-y-3">
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Inline Alerts</h3>
+
+          <div class="flex gap-3 p-4 rounded-lg bg-emerald-50 border border-emerald-200/60">
+            <i data-lucide="check-circle" class="w-4 h-4 text-emerald-600 mt-0.5 flex-shrink-0"></i>
+            <div>
+              <p class="text-sm font-medium text-emerald-800">Page published successfully</p>
+              <p class="text-xs text-emerald-600 mt-0.5">Your changes are now live at bullfinch.io/docs/getting-started</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3 p-4 rounded-lg bg-red-50 border border-red-200/60">
+            <i data-lucide="alert-circle" class="w-4 h-4 text-red-600 mt-0.5 flex-shrink-0"></i>
+            <div>
+              <p class="text-sm font-medium text-red-800">Failed to save changes</p>
+              <p class="text-xs text-red-600 mt-0.5">There was a network error. Please check your connection and try again.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3 p-4 rounded-lg bg-amber-50 border border-amber-200/60">
+            <i data-lucide="alert-triangle" class="w-4 h-4 text-amber-600 mt-0.5 flex-shrink-0"></i>
+            <div>
+              <p class="text-sm font-medium text-amber-800">Unsaved changes</p>
+              <p class="text-xs text-amber-600 mt-0.5">You have unsaved changes that will be lost if you leave this page.</p>
+            </div>
+          </div>
+
+          <div class="flex gap-3 p-4 rounded-lg bg-blue-50 border border-blue-200/60">
+            <i data-lucide="info" class="w-4 h-4 text-blue-600 mt-0.5 flex-shrink-0"></i>
+            <div>
+              <p class="text-sm font-medium text-blue-800">New version available</p>
+              <p class="text-xs text-blue-600 mt-0.5">CMS v2.4 is available with improved media handling and new block types.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Floating Toasts -->
+        <div class="space-y-3">
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Floating Toasts</h3>
+
+          <div class="bg-white rounded-lg shadow-lg border border-gray-200 p-3 flex items-start gap-3 animate-toast-in">
+            <div class="w-6 h-6 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="check" class="w-3.5 h-3.5 text-emerald-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900">Changes saved</p>
+              <p class="text-xs text-gray-500">All changes have been saved automatically.</p>
+            </div>
+            <button class="p-0.5 rounded hover:bg-gray-100 transition-all flex-shrink-0">
+              <i data-lucide="x" class="w-3.5 h-3.5 text-gray-400"></i>
+            </button>
+          </div>
+
+          <div class="bg-white rounded-lg shadow-lg border border-gray-200 p-3 flex items-start gap-3 animate-toast-in">
+            <div class="w-6 h-6 rounded-full bg-red-100 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="x" class="w-3.5 h-3.5 text-red-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900">Upload failed</p>
+              <p class="text-xs text-gray-500">image.png exceeds the 10MB file size limit.</p>
+            </div>
+            <button class="p-0.5 rounded hover:bg-gray-100 transition-all flex-shrink-0">
+              <i data-lucide="x" class="w-3.5 h-3.5 text-gray-400"></i>
+            </button>
+          </div>
+
+          <div class="bg-white rounded-lg shadow-lg border border-gray-200 p-3 flex items-start gap-3 animate-toast-in">
+            <div class="w-6 h-6 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+              <i data-lucide="alert-triangle" class="w-3.5 h-3.5 text-amber-600"></i>
+            </div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-medium text-gray-900">Session expiring</p>
+              <p class="text-xs text-gray-500">Your session will expire in 5 minutes.</p>
+            </div>
+            <button class="px-2 py-0.5 text-xs font-medium text-primary-600 hover:bg-primary-50 rounded transition-all flex-shrink-0">
+              Extend
+            </button>
+          </div>
+
+          <div class="bg-gray-900 rounded-lg shadow-lg p-3 flex items-center gap-3 animate-toast-in">
+            <i data-lucide="loader" class="w-4 h-4 text-gray-400 animate-spin-slow"></i>
+            <p class="text-sm text-gray-200">Publishing to production…</p>
+            <button class="ml-auto text-xs font-medium text-gray-400 hover:text-gray-200 transition-all">Cancel</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 11. BREADCRUMBS & NAVIGATION ===================== -->
+    <section id="breadcrumbs">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight mb-1">Breadcrumbs & Navigation</h2>
+        <p class="text-sm text-gray-500">Wayfinding elements to maintain context and orientation.</p>
+      </div>
+
+      <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-8 space-y-6">
+        <!-- Standard breadcrumb -->
+        <div>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Standard Breadcrumb</h3>
+          <nav class="flex items-center gap-1.5 text-sm">
+            <a href="#" class="text-gray-400 hover:text-gray-600 transition-all flex items-center gap-1">
+              <i data-lucide="home" class="w-3.5 h-3.5"></i>
+            </a>
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-300"></i>
+            <a href="#" class="text-gray-400 hover:text-gray-600 transition-all">Pages</a>
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-300"></i>
+            <a href="#" class="text-gray-400 hover:text-gray-600 transition-all">Documentation</a>
+            <i data-lucide="chevron-right" class="w-3.5 h-3.5 text-gray-300"></i>
+            <span class="text-gray-900 font-medium">Getting Started</span>
+          </nav>
+        </div>
+
+        <!-- With back button -->
+        <div>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Back Navigation</h3>
+          <div class="flex items-center gap-3">
+            <button class="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 ring-1 ring-gray-200 transition-all">
+              <i data-lucide="arrow-left" class="w-4 h-4"></i>
+            </button>
+            <div>
+              <p class="text-sm font-medium text-gray-900">Getting Started Guide</p>
+              <p class="text-[10px] text-gray-400">Pages / Documentation</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Tab navigation -->
+        <div>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Tab Navigation</h3>
+          <div class="border-b border-gray-200">
+            <nav class="flex gap-0">
+              <a href="#" class="px-4 py-2.5 text-sm font-medium text-primary-600 border-b-2 border-primary-600 -mb-px">Content</a>
+              <a href="#" class="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 -mb-px transition-all">SEO</a>
+              <a href="#" class="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 -mb-px transition-all">History</a>
+              <a href="#" class="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 -mb-px transition-all">Settings</a>
+              <a href="#" class="px-4 py-2.5 text-sm font-medium text-gray-500 hover:text-gray-700 border-b-2 border-transparent hover:border-gray-300 -mb-px transition-all">Permissions</a>
+            </nav>
+          </div>
+        </div>
+
+        <!-- Pill tabs -->
+        <div>
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Pill Tabs</h3>
+          <div class="inline-flex items-center gap-1 p-1 rounded-lg bg-gray-100">
+            <button class="px-3 py-1.5 text-xs font-medium rounded-md bg-white text-gray-900 shadow-sm ring-1 ring-gray-200/50">All Pages</button>
+            <button class="px-3 py-1.5 text-xs font-medium rounded-md text-gray-500 hover:text-gray-700 transition-all">Published</button>
+            <button class="px-3 py-1.5 text-xs font-medium rounded-md text-gray-500 hover:text-gray-700 transition-all">Drafts</button>
+            <button class="px-3 py-1.5 text-xs font-medium rounded-md text-gray-500 hover:text-gray-700 transition-all">Archived</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== 12. LOADING STATES ===================== -->
+    <section id="loading">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight mb-1">Loading States</h2>
+        <p class="text-sm text-gray-500">Spinners, skeletons, and progress indicators for async operations.</p>
+      </div>
+
+      <div class="grid grid-cols-2 gap-6">
+        <!-- Spinners -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-6">Spinners</h3>
+          <div class="flex items-center gap-8">
+            <!-- Small spinner -->
+            <div class="text-center">
+              <div class="w-4 h-4 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto"></div>
+              <p class="text-[10px] text-gray-400 mt-2">Small</p>
+            </div>
+            <!-- Medium spinner -->
+            <div class="text-center">
+              <div class="w-6 h-6 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto"></div>
+              <p class="text-[10px] text-gray-400 mt-2">Medium</p>
+            </div>
+            <!-- Large spinner -->
+            <div class="text-center">
+              <div class="w-8 h-8 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin mx-auto"></div>
+              <p class="text-[10px] text-gray-400 mt-2">Large</p>
+            </div>
+            <!-- Button loading -->
+            <div class="text-center">
+              <button class="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-primary-600 text-white shadow-sm cursor-wait">
+                <div class="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                Saving…
+              </button>
+              <p class="text-[10px] text-gray-400 mt-2">Button</p>
+            </div>
+          </div>
+
+          <!-- Full page loading -->
+          <div class="mt-8 p-8 rounded-lg border border-gray-100 flex flex-col items-center justify-center">
+            <div class="w-8 h-8 border-2 border-primary-200 border-t-primary-600 rounded-full animate-spin"></div>
+            <p class="text-sm text-gray-500 mt-3">Loading pages…</p>
+            <p class="text-xs text-gray-400">This may take a moment</p>
+          </div>
+        </div>
+
+        <!-- Skeletons -->
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-8">
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-6">Skeleton Loaders</h3>
+
+          <!-- Card skeleton -->
+          <div class="space-y-4">
+            <!-- Row skeleton -->
+            <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100">
+              <div class="w-9 h-9 rounded-lg skeleton-shimmer flex-shrink-0"></div>
+              <div class="flex-1 space-y-2">
+                <div class="h-3 w-3/4 rounded skeleton-shimmer"></div>
+                <div class="h-2 w-1/2 rounded skeleton-shimmer"></div>
+              </div>
+              <div class="h-5 w-16 rounded-full skeleton-shimmer flex-shrink-0"></div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100">
+              <div class="w-9 h-9 rounded-lg skeleton-shimmer flex-shrink-0"></div>
+              <div class="flex-1 space-y-2">
+                <div class="h-3 w-2/3 rounded skeleton-shimmer"></div>
+                <div class="h-2 w-2/5 rounded skeleton-shimmer"></div>
+              </div>
+              <div class="h-5 w-16 rounded-full skeleton-shimmer flex-shrink-0"></div>
+            </div>
+
+            <div class="flex items-center gap-3 p-3 rounded-lg border border-gray-100">
+              <div class="w-9 h-9 rounded-lg skeleton-shimmer flex-shrink-0"></div>
+              <div class="flex-1 space-y-2">
+                <div class="h-3 w-4/5 rounded skeleton-shimmer"></div>
+                <div class="h-2 w-1/3 rounded skeleton-shimmer"></div>
+              </div>
+              <div class="h-5 w-16 rounded-full skeleton-shimmer flex-shrink-0"></div>
+            </div>
+          </div>
+
+          <!-- Stat card skeleton -->
+          <div class="grid grid-cols-2 gap-3 mt-6">
+            <div class="p-4 rounded-lg border border-gray-100">
+              <div class="h-2 w-16 rounded skeleton-shimmer mb-3"></div>
+              <div class="h-6 w-20 rounded skeleton-shimmer mb-2"></div>
+              <div class="h-2 w-24 rounded skeleton-shimmer"></div>
+            </div>
+            <div class="p-4 rounded-lg border border-gray-100">
+              <div class="h-2 w-20 rounded skeleton-shimmer mb-3"></div>
+              <div class="h-6 w-16 rounded skeleton-shimmer mb-2"></div>
+              <div class="h-2 w-28 rounded skeleton-shimmer"></div>
+            </div>
+          </div>
+
+          <!-- Progress bar -->
+          <div class="mt-6">
+            <div class="flex items-center justify-between mb-1.5">
+              <span class="text-xs font-medium text-gray-600">Uploading assets…</span>
+              <span class="text-xs text-gray-400">67%</span>
+            </div>
+            <div class="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+              <div class="h-full bg-primary-500 rounded-full" style="width: 67%; transition: width 0.5s ease"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===================== DESIGN TOKENS REFERENCE ===================== -->
+    <section id="tokens" class="pb-12">
+      <div class="mb-8">
+        <h2 class="text-2xl font-bold tracking-tight mb-1">Design Tokens</h2>
+        <p class="text-sm text-gray-500">Quick reference for the core design decisions.</p>
+      </div>
+
+      <div class="grid grid-cols-3 gap-6">
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Spacing</h3>
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between"><span class="text-gray-600">Component padding</span><code class="font-mono text-gray-400">p-4, p-5, p-6</code></div>
+            <div class="flex justify-between"><span class="text-gray-600">Section gap</span><code class="font-mono text-gray-400">gap-6, space-y-8</code></div>
+            <div class="flex justify-between"><span class="text-gray-600">Inline gap</span><code class="font-mono text-gray-400">gap-2, gap-3</code></div>
+            <div class="flex justify-between"><span class="text-gray-600">Tight gap</span><code class="font-mono text-gray-400">gap-1, gap-1.5</code></div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Borders & Shadows</h3>
+          <div class="space-y-2 text-xs">
+            <div class="flex justify-between"><span class="text-gray-600">Default border</span><code class="font-mono text-gray-400">border-gray-200</code></div>
+            <div class="flex justify-between"><span class="text-gray-600">Subtle border</span><code class="font-mono text-gray-400">border-gray-100</code></div>
+            <div class="flex justify-between"><span class="text-gray-600">Card shadow</span><code class="font-mono text-gray-400">shadow-sm</code></div>
+            <div class="flex justify-between"><span class="text-gray-600">Elevated shadow</span><code class="font-mono text-gray-400">shadow-lg</code></div>
+            <div class="flex justify-between"><span class="text-gray-600">Focus ring</span><code class="font-mono text-gray-400">ring-2 ring-primary/20</code></div>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-xl border border-gray-200 shadow-sm p-6">
+          <h3 class="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-4">Radius</h3>
+          <div class="flex items-end gap-4 mb-4">
+            <div class="text-center">
+              <div class="w-10 h-10 bg-gray-200 rounded"></div>
+              <p class="text-[10px] text-gray-400 mt-1">rounded</p>
+            </div>
+            <div class="text-center">
+              <div class="w-10 h-10 bg-gray-200 rounded-md"></div>
+              <p class="text-[10px] text-gray-400 mt-1">rounded-md</p>
+            </div>
+            <div class="text-center">
+              <div class="w-10 h-10 bg-primary-200 rounded-lg"></div>
+              <p class="text-[10px] text-gray-400 mt-1">rounded-lg ★</p>
+            </div>
+            <div class="text-center">
+              <div class="w-10 h-10 bg-gray-200 rounded-xl"></div>
+              <p class="text-[10px] text-gray-400 mt-1">rounded-xl</p>
+            </div>
+            <div class="text-center">
+              <div class="w-10 h-10 bg-gray-200 rounded-full"></div>
+              <p class="text-[10px] text-gray-400 mt-1">full</p>
+            </div>
+          </div>
+          <p class="text-xs text-gray-500">Primary radius: <code class="font-mono text-gray-400">rounded-lg</code> (8px) for most components.</p>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="border-t border-gray-200 bg-white">
+    <div class="max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+      <div class="flex items-center gap-2 text-sm text-gray-400">
+        <div class="w-5 h-5 bg-primary-600 rounded flex items-center justify-center">
+          <i data-lucide="feather" class="w-3 h-3 text-white"></i>
+        </div>
+        Bullfinch CMS Design System · v1.0
+      </div>
+      <p class="text-xs text-gray-400">Notion × Linear × Navattic</p>
+    </div>
+  </footer>
+
+  <!-- Initialize Lucide Icons -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      lucide.createIcons();
+    });
+  </script>
+</body>
+</html>

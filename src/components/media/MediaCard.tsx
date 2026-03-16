@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Trash2, Copy, Download, File, FileText, Image } from 'lucide-react';
+import { Trash2, Copy, Download, File, Image, Film, FileText, Check } from 'lucide-react';
 import { useCMS } from '../provider';
 import { ConfirmationModal } from '../common/ConfirmationModal';
 import { formatFileSize, formatDate } from '../../core/helpers';
@@ -8,73 +8,129 @@ import type { MediaItem } from '../../core/types';
 interface MediaCardProps {
   media: MediaItem;
   onDelete: () => void;
+  selectable?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }
 
-export function MediaCard({ media, onDelete }: MediaCardProps) {
+function getFileTypeBadge(mime: string): { label: string; icon: React.ReactNode; color: string } {
+  if (mime.startsWith('image/')) {
+    return { label: 'Image', icon: <Image className="w-3 h-3" />, color: 'bg-blue-50 text-blue-700 ring-1 ring-blue-200' };
+  }
+  if (mime.startsWith('video/')) {
+    return { label: 'Video', icon: <Film className="w-3 h-3" />, color: 'bg-purple-50 text-purple-700 ring-1 ring-purple-200' };
+  }
+  return { label: 'Document', icon: <FileText className="w-3 h-3" />, color: 'bg-gray-100 text-gray-600 ring-1 ring-gray-200' };
+}
+
+export function MediaCard({ media, onDelete, selectable, selected, onToggleSelect }: MediaCardProps) {
   const { user } = useCMS();
   const [copied, setCopied] = useState(false);
-  const [showActions, setShowActions] = useState(false);
+  const [hovered, setHovered] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const isImage = media.mime_type.startsWith('image/');
   const isOwnFile = user?.id === media.uploaded_by;
+  const badge = getFileTypeBadge(media.mime_type);
 
-  const handleCopy = async () => {
+  const handleCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation();
     await navigator.clipboard.writeText(media.url);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
 
   return (
-    <div
-      className="bcms-bg-white bcms-rounded-xl bcms-shadow-sm bcms-border bcms-border-gray-200 bcms-overflow-hidden hover:bcms-shadow-lg bcms-transition-all bcms-group"
-      onMouseEnter={() => setShowActions(true)}
-      onMouseLeave={() => setShowActions(false)}
-    >
-      <div className="bcms-relative bcms-aspect-square bcms-bg-gray-50 bcms-overflow-hidden">
-        {isImage ? (
-          <img src={media.url} alt={media.filename} className="bcms-w-full bcms-h-full bcms-object-cover" />
-        ) : (
-          <div className="bcms-w-full bcms-h-full bcms-flex bcms-items-center bcms-justify-center">
-            <File className="bcms-w-12 bcms-h-12 bcms-text-gray-300" />
-          </div>
-        )}
+    <>
+      <div
+        className={`bg-white rounded-lg shadow-sm ring-1 overflow-hidden transition-all group cursor-pointer ${
+          selected ? 'ring-2 ring-blue-600' : 'ring-gray-200 hover:shadow-md'
+        }`}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        onClick={() => {
+          if (selectable && onToggleSelect) onToggleSelect();
+        }}
+      >
+        {/* Image area */}
+        <div className="relative aspect-square bg-gray-50 overflow-hidden">
+          {isImage ? (
+            <img src={media.url} alt={media.filename} className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full flex items-center justify-center">
+              <File className="w-12 h-12 text-gray-300" />
+            </div>
+          )}
 
-        {showActions && (
-          <div className="bcms-absolute bcms-inset-0 bcms-bg-black/50 bcms-flex bcms-items-center bcms-justify-center bcms-gap-2">
-            <a
-              href={media.url}
-              download
-              target="_blank"
-              rel="noopener noreferrer"
-              className="bcms-bg-white bcms-text-gray-700 bcms-p-2 bcms-rounded-lg hover:bcms-bg-gray-100 bcms-transition"
-            >
-              <Download className="bcms-w-5 bcms-h-5" />
-            </a>
-            <button onClick={handleCopy} className="bcms-bg-white bcms-text-gray-700 bcms-p-2 bcms-rounded-lg hover:bcms-bg-gray-100 bcms-transition">
-              <Copy className="bcms-w-5 bcms-h-5" />
-            </button>
-            {isOwnFile && (
-              <button
-                onClick={() => setShowDeleteConfirm(true)}
-                className="bcms-bg-red-600 bcms-text-white bcms-p-2 bcms-rounded-lg hover:bcms-bg-red-700 bcms-transition"
+          {/* File type badge */}
+          <div className="absolute top-2 left-2">
+            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${badge.color}`}>
+              {badge.icon}
+              {badge.label}
+            </span>
+          </div>
+
+          {/* Select checkbox */}
+          {selectable && (
+            <div className="absolute top-2 right-2">
+              <div
+                className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${
+                  selected
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-white/90 ring-1 ring-gray-300 text-transparent'
+                }`}
               >
-                <Trash2 className="bcms-w-5 bcms-h-5" />
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+                <Check className="w-3 h-3" />
+              </div>
+            </div>
+          )}
 
-      <div className="bcms-p-4">
-        <h3 className="bcms-text-sm bcms-font-medium bcms-text-gray-900 bcms-truncate" title={media.filename}>
-          {media.filename}
-        </h3>
-        <div className="bcms-flex bcms-items-center bcms-justify-between bcms-mt-1">
-          <p className="bcms-text-xs bcms-text-gray-400">{formatFileSize(media.size)}</p>
-          <p className="bcms-text-xs bcms-text-gray-400">{formatDate(media.created_at)}</p>
+          {/* Hover overlay */}
+          {hovered && !selectable && (
+            <div className="absolute inset-0 bg-black/50 flex flex-col justify-end p-3 transition-opacity">
+              <div className="flex items-center gap-1.5">
+                <a
+                  href={media.url}
+                  download
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 text-gray-700 hover:bg-white transition-all"
+                >
+                  <Download className="w-4 h-4" />
+                </a>
+                <button
+                  onClick={handleCopy}
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 text-gray-700 hover:bg-white transition-all"
+                >
+                  {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                </button>
+                {isOwnFile && (
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowDeleteConfirm(true);
+                    }}
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-all"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
         </div>
-        {copied && <p className="bcms-text-xs bcms-text-green-600 bcms-mt-2">✓ URL copied</p>}
+
+        {/* Info area */}
+        <div className="p-3">
+          <h3 className="text-sm font-medium text-gray-900 truncate" title={media.filename}>
+            {media.filename}
+          </h3>
+          <div className="flex items-center justify-between mt-1">
+            <p className="text-xs text-gray-400">{formatFileSize(media.size)}</p>
+            <p className="text-xs text-gray-400">{formatDate(media.created_at)}</p>
+          </div>
+        </div>
       </div>
 
       <ConfirmationModal
@@ -82,9 +138,12 @@ export function MediaCard({ media, onDelete }: MediaCardProps) {
         title="Delete File"
         message={`Delete "${media.filename}"? This cannot be undone.`}
         confirmLabel="Delete"
-        onConfirm={() => { setShowDeleteConfirm(false); onDelete(); }}
+        onConfirm={() => {
+          setShowDeleteConfirm(false);
+          onDelete();
+        }}
         onCancel={() => setShowDeleteConfirm(false)}
       />
-    </div>
+    </>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { ChevronDown } from 'lucide-react';
+import { ChevronDown, Check } from 'lucide-react';
 
 interface DropdownOption {
   value: string;
@@ -29,31 +29,50 @@ export function Dropdown({ options, value, onChange, className = '' }: DropdownP
   }, []);
 
   return (
-    <div className={`bcms-relative ${className}`} ref={dropdownRef}>
+    <div className={`relative ${className}`} ref={dropdownRef}>
       <button
         type="button"
         onClick={() => setIsOpen(!isOpen)}
-        className="bcms-w-full bcms-px-4 bcms-py-2 bcms-text-sm bcms-text-left bcms-bg-white bcms-rounded bcms-border bcms-border-gray-300 focus:bcms-border-blue-500 bcms-outline-none bcms-transition bcms-flex bcms-items-center bcms-justify-between"
+        className={`w-full px-3 py-2 text-sm text-left bg-white rounded-lg border text-gray-900 transition-all duration-150 flex items-center justify-between shadow-sm ${
+          isOpen
+            ? 'border-blue-500 ring-2 ring-blue-500/20'
+            : 'border-gray-200 hover:border-gray-300 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 focus:ring-offset-0'
+        }`}
       >
-        <span>{selectedOption?.label}</span>
-        <ChevronDown className={`bcms-w-4 bcms-h-4 bcms-transition-transform ${isOpen ? 'bcms-rotate-180' : ''}`} />
+        <span className={selectedOption ? 'text-gray-900' : 'text-gray-400'}>
+          {selectedOption?.label || 'Select...'}
+        </span>
+        <ChevronDown
+          className={`w-4 h-4 text-gray-400 transition-transform duration-150 ${isOpen ? 'rotate-180' : ''}`}
+        />
       </button>
+
       {isOpen && (
-        <div className="bcms-absolute bcms-top-full bcms-left-0 bcms-right-0 bcms-mt-1 bcms-bg-white bcms-border bcms-border-gray-300 bcms-rounded bcms-shadow-lg bcms-z-10">
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              onClick={() => { onChange(option.value); setIsOpen(false); }}
-              className={`bcms-w-full bcms-px-4 bcms-py-2 bcms-text-sm bcms-text-left bcms-transition ${
-                value === option.value
-                  ? 'bcms-bg-blue-600 bcms-text-white'
-                  : 'hover:bcms-bg-gray-100 bcms-text-gray-900'
-              }`}
-            >
-              {option.label}
-            </button>
-          ))}
+        <div
+          className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 p-1 overflow-hidden"
+          style={{ animation: 'fade-in-up 0.15s ease-out' }}
+        >
+          {options.map((option) => {
+            const isActive = value === option.value;
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => {
+                  onChange(option.value);
+                  setIsOpen(false);
+                }}
+                className={`w-full px-3 py-2 text-sm text-left rounded-md transition-all duration-150 flex items-center justify-between ${
+                  isActive
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-50'
+                }`}
+              >
+                <span>{option.label}</span>
+                {isActive && <Check className="w-4 h-4 text-blue-600" />}
+              </button>
+            );
+          })}
         </div>
       )}
     </div>

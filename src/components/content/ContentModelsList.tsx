@@ -1,17 +1,14 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Pencil, Trash2, Database, FileText } from 'lucide-react';
+import { Plus, Pencil, Trash2, Database, FileText, MoreHorizontal, Clock } from 'lucide-react';
 import { useSupabase } from '../provider';
 import { fetchContentModels, deleteContentModel, fetchContentEntries } from '../../core/queries';
 import { ConfirmationModal } from '../common/ConfirmationModal';
 import { Toast } from '../common/Toast';
-import type { ContentModel, CMSRoute } from '../../core/types';
+import { navigate } from '../../core/router';
+import type { ContentModel } from '../../core/types';
 import { formatDate } from '../../core/helpers';
 
-interface ContentModelsListProps {
-  onNavigate: (route: CMSRoute) => void;
-}
-
-export function ContentModelsList({ onNavigate }: ContentModelsListProps) {
+export function ContentModelsList() {
   const supabase = useSupabase();
   const [models, setModels] = useState<ContentModel[]>([]);
   const [entryCounts, setEntryCounts] = useState<Record<string, number>>({});
@@ -23,7 +20,6 @@ export function ContentModelsList({ onNavigate }: ContentModelsListProps) {
     try {
       const data = await fetchContentModels(supabase);
       setModels(data);
-      // Load entry counts
       const counts: Record<string, number> = {};
       for (const m of data) {
         const entries = await fetchContentEntries(supabase, m.id);
@@ -53,66 +49,120 @@ export function ContentModelsList({ onNavigate }: ContentModelsListProps) {
 
   if (loading) {
     return (
-      <div className="bcms-space-y-4">
-        {[...Array(3)].map((_, i) => (
-          <div key={i} className="bcms-h-20 bcms-bg-gray-200 bcms-rounded-xl bcms-animate-pulse" />
-        ))}
+      <div className="p-8 max-w-7xl mx-auto space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="space-y-2">
+            <div className="h-7 w-48 rounded-lg bg-gray-200 animate-pulse" />
+            <div className="h-4 w-64 rounded bg-gray-100 animate-pulse" />
+          </div>
+          <div className="h-9 w-32 rounded-lg bg-gray-200 animate-pulse" />
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-white rounded-lg shadow-sm ring-1 ring-gray-200 p-5 space-y-3">
+              <div className="flex items-start justify-between">
+                <div className="w-9 h-9 rounded-lg bg-gray-100 animate-pulse" />
+                <div className="w-6 h-6 rounded bg-gray-100 animate-pulse" />
+              </div>
+              <div className="h-4 w-3/4 rounded bg-gray-100 animate-pulse" />
+              <div className="h-3 w-full rounded bg-gray-50 animate-pulse" />
+              <div className="flex justify-between">
+                <div className="h-5 w-16 rounded-full bg-gray-100 animate-pulse" />
+                <div className="h-3 w-20 rounded bg-gray-50 animate-pulse" />
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="bcms-space-y-6">
-      <div className="bcms-flex bcms-items-center bcms-justify-between">
+    <div className="p-8 max-w-7xl mx-auto space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="bcms-text-2xl bcms-font-bold bcms-text-gray-900">Content Models</h1>
-          <p className="bcms-text-gray-500 bcms-text-sm bcms-mt-1">Define the structure of your content</p>
+          <h1 className="text-2xl font-semibold text-gray-900">Content Models</h1>
+          <p className="text-sm text-gray-500 mt-1">Define the structure of your content</p>
         </div>
         <button
-          onClick={() => onNavigate({ page: 'content-model-editor' })}
-          className="bcms-bg-blue-600 bcms-text-white bcms-py-2.5 bcms-px-6 bcms-text-sm bcms-font-semibold bcms-rounded-lg hover:bcms-bg-blue-700 bcms-transition bcms-flex bcms-items-center bcms-gap-2 bcms-shadow-lg"
+          onClick={() => navigate('#/models/new')}
+          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
         >
-          <Plus className="bcms-w-4 bcms-h-4" /> New Model
+          <Plus className="w-4 h-4" /> New Model
         </button>
       </div>
 
       {models.length === 0 ? (
-        <div className="bcms-bg-white bcms-rounded-xl bcms-shadow-sm bcms-border bcms-border-gray-200 bcms-p-12 bcms-text-center">
-          <Database className="bcms-w-16 bcms-h-16 bcms-mx-auto bcms-text-gray-400 bcms-mb-4" />
-          <p className="bcms-text-gray-600 bcms-mb-6 bcms-text-sm">No content models yet. Create your first one to get started.</p>
+        /* Empty state */
+        <div className="bg-white rounded-lg shadow-sm ring-1 ring-gray-200 p-12 text-center">
+          <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center mx-auto mb-4">
+            <Database className="w-6 h-6 text-gray-400" />
+          </div>
+          <h3 className="text-sm font-medium text-gray-900 mb-1">No content models yet</h3>
+          <p className="text-sm text-gray-500 mb-6 max-w-sm mx-auto">
+            Content models define the structure of your content. Create your first one to get started.
+          </p>
           <button
-            onClick={() => onNavigate({ page: 'content-model-editor' })}
-            className="bcms-bg-blue-600 bcms-text-white bcms-py-2.5 bcms-px-6 bcms-text-sm bcms-font-semibold bcms-rounded-lg hover:bcms-bg-blue-700 bcms-transition bcms-inline-flex bcms-items-center bcms-gap-2"
+            onClick={() => navigate('#/models/new')}
+            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
           >
-            <Plus className="bcms-w-4 bcms-h-4" /> Create First Model
+            <Plus className="w-4 h-4" /> Create First Model
           </button>
         </div>
       ) : (
-        <div className="bcms-grid bcms-grid-cols-1 md:bcms-grid-cols-2 lg:bcms-grid-cols-3 bcms-gap-4">
+        /* Cards grid */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {models.map((model) => (
             <div
               key={model.id}
-              className="bcms-bg-white bcms-rounded-xl bcms-shadow-sm bcms-border bcms-border-gray-200 bcms-p-6 hover:bcms-shadow-md bcms-transition bcms-cursor-pointer bcms-group"
-              onClick={() => onNavigate({ page: 'content-entries', modelId: model.id })}
+              className="bg-white rounded-lg shadow-sm ring-1 ring-gray-200 hover:shadow-md hover:ring-gray-300 transition-all cursor-pointer group"
+              onClick={() => navigate(`#/models/${model.id}`)}
             >
-              <div className="bcms-flex bcms-items-start bcms-justify-between bcms-mb-4">
-                <div className="bcms-text-2xl">{model.icon || '📄'}</div>
-                <div className="bcms-flex bcms-gap-1 bcms-opacity-0 group-hover:bcms-opacity-100 bcms-transition" onClick={(e) => e.stopPropagation()}>
-                  <button onClick={() => onNavigate({ page: 'content-model-editor', id: model.id })} className="bcms-p-2 bcms-text-gray-400 hover:bcms-text-blue-600 hover:bcms-bg-blue-50 bcms-rounded-lg bcms-transition" title="Edit">
-                    <Pencil className="bcms-w-4 bcms-h-4" />
-                  </button>
-                  <button onClick={() => setDeleteTarget(model)} className="bcms-p-2 bcms-text-gray-400 hover:bcms-text-red-600 hover:bcms-bg-red-50 bcms-rounded-lg bcms-transition" title="Delete">
-                    <Trash2 className="bcms-w-4 bcms-h-4" />
-                  </button>
+              <div className="p-5">
+                <div className="flex items-start justify-between mb-3">
+                  <div className="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center text-lg">
+                    {model.icon || '📄'}
+                  </div>
+                  <div
+                    className="flex gap-1 opacity-0 group-hover:opacity-100 transition-all"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <button
+                      onClick={() => navigate(`#/models/${model.id}`)}
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-all"
+                      title="Edit model"
+                    >
+                      <Pencil className="w-3.5 h-3.5" />
+                    </button>
+                    <button
+                      onClick={() => setDeleteTarget(model)}
+                      className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-all"
+                      title="Delete model"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <h3 className="bcms-font-semibold bcms-text-gray-900 bcms-mb-1">{model.name}</h3>
-              <p className="bcms-text-xs bcms-text-gray-500 bcms-mb-3">{model.description || 'No description'}</p>
-              <div className="bcms-flex bcms-items-center bcms-justify-between bcms-text-xs bcms-text-gray-400">
-                <span className="bcms-flex bcms-items-center bcms-gap-1">
-                  <FileText className="bcms-w-3 bcms-h-3" /> {entryCounts[model.id] || 0} entries
-                </span>
-                <span>{model.fields.length} fields</span>
+                <h3 className="text-sm font-medium text-gray-900 mb-1">{model.name}</h3>
+                <p className="text-xs text-gray-500 mb-4 line-clamp-2">
+                  {model.description || 'No description'}
+                </p>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="inline-flex items-center gap-1 text-xs text-gray-500">
+                      <FileText className="w-3 h-3" />
+                      {entryCounts[model.id] || 0} entries
+                    </span>
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-700 ring-1 ring-blue-200/60">
+                      {model.fields.length} fields
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-gray-400 flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    {formatDate(model.updated_at)}
+                  </span>
+                </div>
               </div>
             </div>
           ))}

@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { Save, ArrowLeft, Eye, Code, FileText } from 'lucide-react';
+import React, { useEffect, useState, useRef } from 'react';
+import { Save, ArrowLeft, Eye, Code, FileText, ChevronRight, MoreHorizontal, Archive, Trash2, Clock } from 'lucide-react';
 import { useSupabase, useCMS } from '../provider';
+import { navigate } from '../../core/router';
 import {
   fetchContentModel,
   fetchContentEntry,
@@ -14,15 +15,20 @@ import { DynamicField } from './DynamicField';
 import { SEOPanel } from '../common/SEOPanel';
 import { JsonViewer } from './JsonViewer';
 import { Toast } from '../common/Toast';
-import type { ContentModel, ContentEntry, CMSRoute, EntryStatus, SEOData } from '../../core/types';
+import type { ContentModel, ContentEntry, EntryStatus, SEOData } from '../../core/types';
 
 interface ContentEntryEditorProps {
   modelId: string;
   entryId?: string;
-  onNavigate: (route: CMSRoute) => void;
 }
 
-export function ContentEntryEditor({ modelId, entryId, onNavigate }: ContentEntryEditorProps) {
+const STATUS_CONFIG: Record<EntryStatus, { label: string; dot: string; bg: string; text: string; ring: string }> = {
+  draft: { label: 'Draft', dot: 'bg-amber-500', bg: 'bg-amber-50', text: 'text-amber-700', ring: 'ring-amber-200/60' },
+  published: { label: 'Published', dot: 'bg-emerald-500', bg: 'bg-emerald-50', text: 'text-emerald-700', ring: 'ring-emerald-200/60' },
+  archived: { label: 'Archived', dot: 'bg-gray-400', bg: 'bg-gray-100', text: 'text-gray-600', ring: 'ring-gray-200/60' },
+};
+
+export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps) {
   const supabase = useSupabase();
   const { user, config } = useCMS();
   const [model, setModel] = useState<ContentModel | null>(null);
@@ -34,12 +40,37 @@ export function ContentEntryEditor({ modelId, entryId, onNavigate }: ContentEntr
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showJson, setShowJson] = useState(false);
-  const [showSeo, setShowSeo] = useState(false);
+  const [showStatusMenu, setShowStatusMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; title: string; message?: string } | null>(null);
+  const [createdAt, setCreatedAt] = useState<string | null>(null);
+  const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+
+  const statusRef = useRef<HTMLDivElement>(null);
+  const moreRef = useRef<HTMLDivElement>(null);
+  const initialLoadDone = useRef(false);
 
   useEffect(() => {
     loadData();
   }, [modelId, entryId]);
+
+  // Track unsaved changes after initial load
+  useEffect(() => {
+    if (initialLoadDone.current) {
+      setHasUnsavedChanges(true);
+    }
+  }, [title, fields, status, seo]);
+
+  // Close menus on outside click
+  useEffect(() => {
+    function handleClick(e: MouseEvent) {
+      if (statusRef.current && !statusRef.current.contains(e.target as Node)) setShowStatusMenu(false);
+      if (moreRef.current && !moreRef.current.contains(e.target as Node)) setShowMoreMenu(false);
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, []);
 
   const loadData = async () => {
     try {
@@ -53,6 +84,8 @@ export function ContentEntryEditor({ modelId, entryId, onNavigate }: ContentEntr
           setFields(entry.fields as Record<string, unknown>);
           setStatus(entry.status);
           setSeo(entry.seo || {});
+          setCreatedAt(entry.created_at);
+          setUpdatedAt(entry.updated_at);
         }
       } else if (m) {
         setFields(getDefaultFieldValues(m.fields));
@@ -61,6 +94,8 @@ export function ContentEntryEditor({ modelId, entryId, onNavigate }: ContentEntr
       console.error('Error loading entry:', err);
     } finally {
       setLoading(false);
+      // Mark initial load as done after a tick so the useEffect doesn't fire
+      setTimeout(() => { initialLoadDone.current = true; }, 0);
     }
   };
 
@@ -102,6 +137,7 @@ export function ContentEntryEditor({ modelId, entryId, onNavigate }: ContentEntr
           setStatus(newStatus);
         }
         if (config.hooks?.onAfterSave) await config.hooks.onAfterSave(saved);
+        setHasUnsavedChanges(false);
         setToast({ type: 'success', title: 'Entry saved' });
       } else {
         const saved = await createContentEntry(supabase, {
@@ -111,8 +147,9 @@ export function ContentEntryEditor({ modelId, entryId, onNavigate }: ContentEntr
           seo: Object.keys(seo).length > 0 ? seo : undefined,
         });
         if (config.hooks?.onAfterSave) await config.hooks.onAfterSave(saved);
+        setHasUnsavedChanges(false);
         setToast({ type: 'success', title: 'Entry created' });
-        onNavigate({ page: 'content-entry-editor', modelId, entryId: saved.id });
+        navigate(`#/models/${modelId}/entries/${saved.id}`);
       }
     } catch (err: any) {
       setToast({ type: 'error', title: 'Save failed', message: err.message });
@@ -132,136 +169,297 @@ export function ContentEntryEditor({ modelId, entryId, onNavigate }: ContentEntr
     }
   };
 
+  const formatDate = (dateStr: string | null) => {
+    if (!dateStr) return '—';
+    return new Date(dateStr).toLocaleDateString('en-US', {
+      month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
+    });
+  };
+
   if (loading) {
     return (
-      <div className="bcms-p-8 bcms-space-y-4">
-        {[...Array(5)].map((_, i) => (
-          <div key={i} className="bcms-h-12 bcms-bg-gray-200 bcms-rounded-lg bcms-animate-pulse" />
-        ))}
+      <div className="min-h-screen bg-gray-50">
+        <div className="sticky top-0 z-10 bg-white border-b border-gray-200 px-6 py-4">
+          <div className="flex items-center justify-between max-w-7xl mx-auto">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-gray-100 animate-pulse" />
+              <div className="h-5 w-48 bg-gray-100 rounded animate-pulse" />
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="h-9 w-24 bg-gray-100 rounded-lg animate-pulse" />
+              <div className="h-9 w-20 bg-gray-100 rounded-lg animate-pulse" />
+            </div>
+          </div>
+        </div>
+        <div className="max-w-7xl mx-auto px-6 py-8">
+          <div className="grid grid-cols-3 gap-8">
+            <div className="col-span-2 space-y-4">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="h-16 bg-white rounded-lg border border-gray-200 animate-pulse" />
+              ))}
+            </div>
+            <div className="space-y-4">
+              <div className="h-48 bg-white rounded-lg border border-gray-200 animate-pulse" />
+            </div>
+          </div>
+        </div>
       </div>
     );
   }
 
   if (!model) {
     return (
-      <div className="bcms-p-8 bcms-text-center bcms-text-gray-500">
-        Content model not found.
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-12 h-12 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+            <FileText className="w-5 h-5 text-gray-400" />
+          </div>
+          <p className="text-sm text-gray-500">Content model not found.</p>
+          <button
+            onClick={() => navigate('#/models')}
+            className="mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium"
+          >
+            Back to models
+          </button>
+        </div>
       </div>
     );
   }
 
+  const statusInfo = STATUS_CONFIG[status];
+
   const currentEntry: ContentEntry | null = entryId
-    ? { id: entryId, content_model_id: modelId, title, fields, status, seo, published_at: null, created_by: user?.id || '', created_at: '', updated_at: '' }
+    ? { id: entryId, content_model_id: modelId, title, fields, status, seo, published_at: null, created_by: user?.id || '', created_at: createdAt || '', updated_at: updatedAt || '' }
     : null;
 
   return (
-    <div className="bcms-p-8 bcms-max-w-4xl">
-      {/* Header */}
-      <div className="bcms-flex bcms-items-center bcms-justify-between bcms-mb-8">
-        <div>
-          <button
-            onClick={() => onNavigate({ page: 'content-entries', modelId })}
-            className="bcms-text-sm bcms-text-gray-500 hover:bcms-text-gray-700 bcms-flex bcms-items-center bcms-gap-1 bcms-mb-1"
-          >
-            <ArrowLeft className="bcms-w-4 bcms-h-4" /> Back to {model.name}
-          </button>
-          <h1 className="bcms-text-2xl bcms-font-bold bcms-text-gray-900">
-            {entryId ? 'Edit Entry' : 'New Entry'}
-          </h1>
-        </div>
-        <div className="bcms-flex bcms-items-center bcms-gap-2">
-          {currentEntry && (
-            <button
-              onClick={() => setShowJson(true)}
-              className="bcms-p-2 bcms-text-gray-400 hover:bcms-text-gray-600 hover:bcms-bg-gray-100 bcms-rounded-lg bcms-transition"
-              title="View JSON"
-            >
-              <Code className="bcms-w-5 bcms-h-5" />
+    <div className="min-h-screen bg-gray-50">
+      {/* Sticky Top Bar */}
+      <div className="sticky top-0 z-20 bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-3">
+          {/* Breadcrumb */}
+          <nav className="flex items-center gap-1.5 text-xs text-gray-400 mb-2">
+            <button onClick={() => navigate('#/models')} className="hover:text-gray-600 transition-colors">
+              Content Models
             </button>
-          )}
-          <button
-            onClick={() => setShowSeo(!showSeo)}
-            className={`bcms-p-2 bcms-rounded-lg bcms-transition ${showSeo ? 'bcms-bg-blue-100 bcms-text-blue-600' : 'bcms-text-gray-400 hover:bcms-text-gray-600 hover:bcms-bg-gray-100'}`}
-            title="SEO Settings"
-          >
-            <FileText className="bcms-w-5 bcms-h-5" />
-          </button>
-          {status === 'draft' && (
-            <button
-              onClick={() => handleSave('published')}
-              disabled={saving}
-              className="bcms-bg-green-600 bcms-text-white bcms-py-2.5 bcms-px-4 bcms-text-sm bcms-font-semibold bcms-rounded-lg hover:bcms-bg-green-700 bcms-transition bcms-flex bcms-items-center bcms-gap-2 disabled:bcms-opacity-50"
-            >
-              <Eye className="bcms-w-4 bcms-h-4" /> Publish
+            <ChevronRight className="w-3 h-3" />
+            <button onClick={() => navigate(`#/models/${modelId}/entries`)} className="hover:text-gray-600 transition-colors">
+              {model.name}
             </button>
-          )}
-          <button
-            onClick={() => handleSave()}
-            disabled={saving}
-            className="bcms-bg-blue-600 bcms-text-white bcms-py-2.5 bcms-px-6 bcms-text-sm bcms-font-semibold bcms-rounded-lg hover:bcms-bg-blue-700 bcms-transition bcms-flex bcms-items-center bcms-gap-2 bcms-shadow-lg disabled:bcms-opacity-50"
-          >
-            <Save className="bcms-w-4 bcms-h-4" /> {saving ? 'Saving...' : 'Save'}
-          </button>
+            <ChevronRight className="w-3 h-3" />
+            <span className="text-gray-900 font-medium">{entryId ? title || 'Untitled' : 'New Entry'}</span>
+          </nav>
+
+          {/* Title + Actions row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button
+                onClick={() => navigate(`#/models/${modelId}/entries`)}
+                className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 ring-1 ring-gray-200 transition-all"
+              >
+                <ArrowLeft className="w-4 h-4" />
+              </button>
+              <h1 className="text-lg font-semibold text-gray-900 truncate max-w-md">
+                {title || 'Untitled Entry'}
+              </h1>
+              {/* Status Badge */}
+              <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium ${statusInfo.bg} ${statusInfo.text} ring-1 ${statusInfo.ring}`}>
+                <span className={`w-1.5 h-1.5 rounded-full ${statusInfo.dot}`} />
+                {statusInfo.label}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2">
+              {/* Unsaved changes indicator */}
+              {hasUnsavedChanges && (
+                <span className="text-xs text-amber-600 bg-amber-50 px-2 py-1 rounded-md ring-1 ring-amber-200/60 font-medium">
+                  Unsaved changes
+                </span>
+              )}
+
+              {/* Save Draft */}
+              <button
+                onClick={() => handleSave()}
+                disabled={saving}
+                className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-white text-gray-700 hover:bg-gray-50 ring-1 ring-gray-200 shadow-sm transition-all disabled:opacity-50"
+              >
+                <Save className="w-4 h-4" />
+                {saving ? 'Saving…' : 'Save Draft'}
+              </button>
+
+              {/* Publish */}
+              {status !== 'published' && (
+                <button
+                  onClick={() => handleSave('published')}
+                  disabled={saving}
+                  className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow-sm transition-all disabled:opacity-50"
+                >
+                  <Eye className="w-4 h-4" />
+                  Publish
+                </button>
+              )}
+
+              {/* More Menu */}
+              <div className="relative" ref={moreRef}>
+                <button
+                  onClick={() => setShowMoreMenu(!showMoreMenu)}
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 ring-1 ring-gray-200 shadow-sm transition-all"
+                >
+                  <MoreHorizontal className="w-4 h-4" />
+                </button>
+                {showMoreMenu && (
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg z-10 p-1 overflow-hidden">
+                    {currentEntry && (
+                      <button
+                        onClick={() => { setShowJson(true); setShowMoreMenu(false); }}
+                        className="w-full px-3 py-2 text-sm text-left rounded-md text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-all"
+                      >
+                        <Code className="w-4 h-4 text-gray-400" />
+                        View JSON
+                      </button>
+                    )}
+                    {status !== 'archived' && entryId && (
+                      <button
+                        onClick={() => { handleSave('archived'); setShowMoreMenu(false); }}
+                        className="w-full px-3 py-2 text-sm text-left rounded-md text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-all"
+                      >
+                        <Archive className="w-4 h-4 text-gray-400" />
+                        Archive
+                      </button>
+                    )}
+                    {status === 'published' && (
+                      <button
+                        onClick={() => { handleSave('draft'); setShowMoreMenu(false); }}
+                        className="w-full px-3 py-2 text-sm text-left rounded-md text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-all"
+                      >
+                        <FileText className="w-4 h-4 text-gray-400" />
+                        Unpublish
+                      </button>
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Status Badge */}
-      {entryId && (
-        <div className="bcms-mb-6">
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as EntryStatus)}
-            className="bcms-px-3 bcms-py-1.5 bcms-text-xs bcms-font-medium bcms-border bcms-border-gray-300 bcms-rounded-lg"
-          >
-            <option value="draft">Draft</option>
-            <option value="published">Published</option>
-            <option value="archived">Archived</option>
-          </select>
+      {/* Two Column Layout */}
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        <div className="grid grid-cols-3 gap-8">
+          {/* Left: Fields Form */}
+          <div className="col-span-2 space-y-6">
+            {/* Title Field */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Title <span className="text-red-500">*</span>
+              </label>
+              <input
+                type="text"
+                value={title}
+                onChange={(e) => {
+                  setTitle(e.target.value);
+                  if (errors.title) setErrors((p) => { const n = { ...p }; delete n.title; return n; });
+                }}
+                className="w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition-all"
+                placeholder="Enter entry title…"
+              />
+              {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title}</p>}
+            </div>
+
+            {/* Dynamic Fields Card */}
+            <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-6">
+              <div className="space-y-6">
+                {model.fields.map((field) => (
+                  <DynamicField
+                    key={field.id}
+                    field={field}
+                    value={fields[field.api_identifier]}
+                    onChange={(v) => updateField(field.api_identifier, v)}
+                    error={errors[field.api_identifier]}
+                  />
+                ))}
+                {model.fields.length === 0 && (
+                  <div className="text-center py-12">
+                    <div className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center mx-auto mb-3">
+                      <FileText className="w-4 h-4 text-gray-400" />
+                    </div>
+                    <p className="text-sm text-gray-500">No fields defined yet.</p>
+                    <p className="text-xs text-gray-400 mt-1">Add fields to this content model to get started.</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Right: Sidebar */}
+          <div className="space-y-6">
+            {/* Status Card */}
+            <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Status</h3>
+              <div className="relative" ref={statusRef}>
+                <button
+                  type="button"
+                  onClick={() => setShowStatusMenu(!showStatusMenu)}
+                  className="w-full px-3 py-2 text-sm text-left bg-white rounded-lg border border-gray-200 hover:border-gray-300 transition-all flex items-center justify-between shadow-sm"
+                >
+                  <span className="flex items-center gap-2">
+                    <span className={`w-2 h-2 rounded-full ${statusInfo.dot}`} />
+                    <span className="text-gray-900 font-medium">{statusInfo.label}</span>
+                  </span>
+                  <ChevronRight className={`w-4 h-4 text-gray-400 transition-transform ${showStatusMenu ? 'rotate-90' : ''}`} />
+                </button>
+                {showStatusMenu && (
+                  <div className="absolute top-full left-0 right-0 mt-1 bg-white border border-gray-200 rounded-lg shadow-lg z-10 p-1">
+                    {(Object.entries(STATUS_CONFIG) as [EntryStatus, typeof statusInfo][]).map(([key, config]) => (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => { setStatus(key); setShowStatusMenu(false); }}
+                        className={`w-full px-3 py-2 text-sm text-left rounded-md flex items-center gap-2 transition-all ${
+                          status === key ? 'bg-blue-50 text-blue-700 font-medium' : 'text-gray-700 hover:bg-gray-50'
+                        }`}
+                      >
+                        <span className={`w-2 h-2 rounded-full ${config.dot}`} />
+                        {config.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Metadata Card */}
+            {entryId && (
+              <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Details</h3>
+                <div className="space-y-3">
+                  <div className="flex items-start gap-2">
+                    <Clock className="w-3.5 h-3.5 text-gray-400 mt-0.5" />
+                    <div>
+                      <p className="text-xs text-gray-500">Created</p>
+                      <p className="text-sm text-gray-700">{formatDate(createdAt)}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-start gap-2">
+                    <Clock className="w-3.5 h-3.5 text-gray-400 mt-0.5" />
+                    <div>
+                      <p className="text-xs text-gray-500">Last updated</p>
+                      <p className="text-sm text-gray-700">{formatDate(updatedAt)}</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* SEO Panel */}
+            <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">SEO</h3>
+              <SEOPanel seoData={seo} onChange={setSeo} />
+            </div>
+          </div>
         </div>
-      )}
-
-      {/* Title */}
-      <div className="bcms-mb-6">
-        <label className="bcms-block bcms-text-sm bcms-font-medium bcms-text-gray-700 bcms-mb-1">
-          Title <span className="bcms-text-red-500">*</span>
-        </label>
-        <input
-          type="text"
-          value={title}
-          onChange={(e) => {
-            setTitle(e.target.value);
-            if (errors.title) setErrors((p) => { const n = { ...p }; delete n.title; return n; });
-          }}
-          className="bcms-w-full bcms-px-4 bcms-py-3 bcms-text-lg bcms-border bcms-border-gray-300 bcms-rounded-lg focus:bcms-ring-2 focus:bcms-ring-blue-500"
-          placeholder="Entry title"
-        />
-        {errors.title && <p className="bcms-text-xs bcms-text-red-500 bcms-mt-1">{errors.title}</p>}
       </div>
-
-      {/* Dynamic Fields */}
-      <div className="bcms-space-y-6 bcms-bg-white bcms-rounded-xl bcms-shadow-sm bcms-border bcms-border-gray-200 bcms-p-6">
-        {model.fields.map((field) => (
-          <DynamicField
-            key={field.id}
-            field={field}
-            value={fields[field.api_identifier]}
-            onChange={(v) => updateField(field.api_identifier, v)}
-            error={errors[field.api_identifier]}
-          />
-        ))}
-        {model.fields.length === 0 && (
-          <p className="bcms-text-sm bcms-text-gray-400 bcms-text-center bcms-py-8">
-            This content model has no fields defined yet.
-          </p>
-        )}
-      </div>
-
-      {/* SEO Panel */}
-      {showSeo && (
-        <div className="bcms-mt-6">
-          <SEOPanel seoData={seo} onChange={setSeo} />
-        </div>
-      )}
 
       {/* JSON Viewer */}
       {showJson && currentEntry && (

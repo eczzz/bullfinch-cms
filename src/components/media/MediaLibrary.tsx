@@ -1,18 +1,29 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Upload } from 'lucide-react';
+import { Search, Upload, Image, Filter, Check } from 'lucide-react';
 import { useSupabase } from '../provider';
 import { fetchMedia, deleteMediaRecord } from '../../core/queries';
 import { MediaCard } from './MediaCard';
 import { MediaUpload } from './MediaUpload';
 import type { MediaItem } from '../../core/types';
 
+const FILE_TYPE_FILTERS = [
+  { key: 'all', label: 'All Files' },
+  { key: 'image', label: 'Images' },
+  { key: 'video', label: 'Videos' },
+  { key: 'document', label: 'Documents' },
+] as const;
+
+type FileTypeFilter = (typeof FILE_TYPE_FILTERS)[number]['key'];
+
 export function MediaLibrary() {
   const supabase = useSupabase();
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState<'all' | 'image' | 'document'>('all');
+  const [filterType, setFilterType] = useState<FileTypeFilter>('all');
   const [showUpload, setShowUpload] = useState(false);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkMode, setBulkMode] = useState(false);
 
   const loadMedia = async () => {
     setLoading(true);
@@ -26,30 +37,67 @@ export function MediaLibrary() {
     }
   };
 
-  useEffect(() => { loadMedia(); }, []);
+  useEffect(() => {
+    loadMedia();
+  }, []);
 
   const filtered = media.filter((m) => {
     if (searchTerm && !m.filename.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     if (filterType === 'image' && !m.mime_type.startsWith('image/')) return false;
-    if (filterType === 'document' && m.mime_type.startsWith('image/')) return false;
+    if (filterType === 'video' && !m.mime_type.startsWith('video/')) return false;
+    if (filterType === 'document' && (m.mime_type.startsWith('image/') || m.mime_type.startsWith('video/'))) return false;
     return true;
   });
 
   const handleDelete = async (id: string) => {
     try {
       await deleteMediaRecord(supabase, id);
+      setSelectedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
       loadMedia();
     } catch (err) {
       console.error('Delete failed:', err);
     }
   };
 
+  const handleBulkDelete = async () => {
+    for (const id of selectedIds) {
+      try {
+        await deleteMediaRecord(supabase, id);
+      } catch (err) {
+        console.error('Bulk delete failed for', id, err);
+      }
+    }
+    setSelectedIds(new Set());
+    setBulkMode(false);
+    loadMedia();
+  };
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   if (loading) {
     return (
-      <div className="bcms-p-8">
-        <div className="bcms-grid bcms-grid-cols-4 bcms-gap-4">
+      <div className="p-8 max-w-7xl mx-auto">
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <div className="h-7 w-40 rounded-lg bg-gray-200 animate-pulse mb-2" />
+            <div className="h-4 w-64 rounded bg-gray-200 animate-pulse" />
+          </div>
+          <div className="h-9 w-32 rounded-lg bg-gray-200 animate-pulse" />
+        </div>
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {[...Array(8)].map((_, i) => (
-            <div key={i} className="bcms-h-40 bcms-bg-gray-200 bcms-rounded-lg bcms-animate-pulse" />
+            <div key={i} className="aspect-square rounded-lg bg-gray-200 animate-pulse" />
           ))}
         </div>
       </div>
@@ -57,72 +105,129 @@ export function MediaLibrary() {
   }
 
   return (
-    <div className="bcms-p-8 bcms-max-w-7xl">
-      <div className="bcms-flex bcms-items-center bcms-justify-between bcms-mb-8">
+    <div className="p-8 max-w-7xl mx-auto">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="bcms-text-2xl bcms-font-bold bcms-text-gray-900">Media Library</h1>
-          <p className="bcms-text-gray-500 bcms-text-sm bcms-mt-1">Upload and manage your media files</p>
+          <h1 className="text-2xl font-semibold tracking-tight text-gray-900">Media Library</h1>
+          <p className="text-sm text-gray-500 mt-1">Upload and manage your media files</p>
         </div>
-        <button
-          onClick={() => setShowUpload(!showUpload)}
-          className="bcms-bg-blue-600 bcms-text-white bcms-py-2.5 bcms-px-6 bcms-text-sm bcms-font-semibold bcms-rounded-lg hover:bcms-bg-blue-700 bcms-transition bcms-flex bcms-items-center bcms-gap-2 bcms-shadow-lg"
-        >
-          <Upload className="bcms-w-4 bcms-h-4" /> {showUpload ? 'Cancel' : 'Upload Files'}
-        </button>
+        <div className="flex items-center gap-2">
+          {bulkMode && selectedIds.size > 0 && (
+            <button
+              onClick={handleBulkDelete}
+              className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white rounded-lg px-4 py-2 text-sm font-medium transition-all"
+            >
+              Delete {selectedIds.size} selected
+            </button>
+          )}
+          <button
+            onClick={() => {
+              setBulkMode(!bulkMode);
+              if (bulkMode) setSelectedIds(new Set());
+            }}
+            className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all ${
+              bulkMode
+                ? 'bg-gray-900 text-white hover:bg-gray-800'
+                : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+            }`}
+          >
+            <Check className="w-4 h-4" />
+            {bulkMode ? 'Cancel' : 'Select'}
+          </button>
+          <button
+            onClick={() => setShowUpload(!showUpload)}
+            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
+          >
+            <Upload className="w-4 h-4" />
+            Upload
+          </button>
+        </div>
       </div>
 
+      {/* Upload zone */}
       {showUpload && (
-        <div className="bcms-mb-8">
-          <MediaUpload onUploadComplete={() => { setShowUpload(false); loadMedia(); }} />
+        <div className="mb-6">
+          <MediaUpload
+            onUploadComplete={() => {
+              setShowUpload(false);
+              loadMedia();
+            }}
+          />
         </div>
       )}
 
-      {/* Search & Filter */}
-      <div className="bcms-mb-6 bcms-space-y-4">
-        <div className="bcms-relative">
-          <Search className="bcms-absolute bcms-left-3 bcms-top-1/2 bcms--translate-y-1/2 bcms-w-4 bcms-h-4 bcms-text-gray-400" />
+      {/* Search & Filter bar */}
+      <div className="flex items-center gap-3 mb-6">
+        <div className="relative flex-1">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
           <input
             type="text"
-            placeholder="Search media..."
+            placeholder="Search media…"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="bcms-w-full bcms-pl-10 bcms-pr-4 bcms-py-2 bcms-text-sm bcms-border bcms-border-gray-300 bcms-rounded-lg"
+            className="w-full pl-9 pr-3 py-2 text-sm border border-gray-200 rounded-lg bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
           />
         </div>
-        <div className="bcms-flex bcms-gap-2">
-          {(['all', 'image', 'document'] as const).map((t) => (
+        <div className="inline-flex items-center gap-1 p-1 rounded-lg bg-gray-100">
+          {FILE_TYPE_FILTERS.map((f) => (
             <button
-              key={t}
-              onClick={() => setFilterType(t)}
-              className={`bcms-px-3 bcms-py-1.5 bcms-rounded-lg bcms-text-xs bcms-font-medium bcms-transition ${
-                filterType === t
-                  ? 'bcms-bg-blue-600 bcms-text-white'
-                  : 'bcms-bg-gray-100 bcms-text-gray-600 hover:bcms-bg-gray-200'
+              key={f.key}
+              onClick={() => setFilterType(f.key)}
+              className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                filterType === f.key
+                  ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200/50'
+                  : 'text-gray-500 hover:text-gray-700'
               }`}
             >
-              {t.charAt(0).toUpperCase() + t.slice(1)}
+              {f.label}
             </button>
           ))}
         </div>
       </div>
 
-      {/* Grid */}
+      {/* Grid / Empty state */}
       {filtered.length === 0 ? (
-        <div className="bcms-bg-white bcms-rounded-xl bcms-shadow-sm bcms-border bcms-border-gray-200 bcms-p-12 bcms-text-center">
-          <p className="bcms-text-gray-500 bcms-mb-4">
-            {media.length === 0 ? 'No files yet. Upload your first file.' : 'No files match your search.'}
+        <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-16 text-center">
+          <div className="w-12 h-12 rounded-lg bg-gray-100 flex items-center justify-center mx-auto mb-4">
+            <Image className="w-6 h-6 text-gray-400" />
+          </div>
+          <h3 className="text-sm font-semibold text-gray-900 mb-1">
+            {media.length === 0 ? 'No media files yet' : 'No files match your search'}
+          </h3>
+          <p className="text-xs text-gray-500 mb-4">
+            {media.length === 0
+              ? 'Upload your first file to get started'
+              : 'Try adjusting your search or filter'}
           </p>
+          {media.length === 0 && (
+            <button
+              onClick={() => setShowUpload(true)}
+              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
+            >
+              <Upload className="w-4 h-4" />
+              Upload Files
+            </button>
+          )}
         </div>
       ) : (
-        <div className="bcms-grid bcms-grid-cols-1 md:bcms-grid-cols-2 lg:bcms-grid-cols-3 xl:bcms-grid-cols-4 bcms-gap-6">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
           {filtered.map((m) => (
-            <MediaCard key={m.id} media={m} onDelete={() => handleDelete(m.id)} />
+            <MediaCard
+              key={m.id}
+              media={m}
+              onDelete={() => handleDelete(m.id)}
+              selectable={bulkMode}
+              selected={selectedIds.has(m.id)}
+              onToggleSelect={() => toggleSelect(m.id)}
+            />
           ))}
         </div>
       )}
 
+      {/* Count */}
       {filtered.length > 0 && (
-        <p className="bcms-text-xs bcms-text-gray-400 bcms-mt-6">
+        <p className="text-xs text-gray-400 mt-6">
           Showing {filtered.length} of {media.length} files
         </p>
       )}

@@ -700,6 +700,67 @@ export SUPABASE_URL="https://xxxxx.supabase.co"
 export SUPABASE_SERVICE_ROLE_KEY="eyJhbGciOiJI..."
 ```
 
+**Global flags:** `--json` (machine-readable output), `--version`, `--help`
+
+### `schemas` — Discover client schemas
+
+```bash
+npx @bullfinch/cms schemas list                        # List all client schemas
+npx @bullfinch/cms schemas info --schema cms_acme      # Schema details (tables, row counts, models)
+```
+
+### `models` — Manage content models
+
+```bash
+npx @bullfinch/cms models list --schema cms_acme
+npx @bullfinch/cms models get --schema cms_acme --model blog_post
+npx @bullfinch/cms models create --schema cms_acme \
+  --name "Blog Post" --api-id blog_post \
+  --description "Blog articles" --icon "📝" \
+  --fields '[{"id":"...","name":"Body","api_identifier":"body","field_type":"rich_text","required":true}]'
+npx @bullfinch/cms models update --schema cms_acme --model blog_post --name "Article"
+npx @bullfinch/cms models delete --schema cms_acme --model blog_post
+```
+
+Models are referenced by `api_identifier` (e.g. `blog_post`), not UUID. The `--fields` flag accepts inline JSON or a file path to a JSON array of field definitions.
+
+### `entries` — Manage content entries
+
+```bash
+npx @bullfinch/cms entries list --schema cms_acme --model blog_post [--status published] [--limit 50]
+npx @bullfinch/cms entries get --schema cms_acme --id <uuid>
+npx @bullfinch/cms entries create --schema cms_acme --model blog_post \
+  --title "My Post" --fields '{"body":"<p>Hello world</p>"}'
+npx @bullfinch/cms entries update --schema cms_acme --id <uuid> \
+  --title "Updated Title" --fields '{"body":"<p>New content</p>"}'
+npx @bullfinch/cms entries delete --schema cms_acme --id <uuid>
+npx @bullfinch/cms entries publish --schema cms_acme --id <uuid>
+npx @bullfinch/cms entries unpublish --schema cms_acme --id <uuid>
+```
+
+### `media` — Manage uploaded files
+
+```bash
+npx @bullfinch/cms media list --schema cms_acme [--limit 50]
+npx @bullfinch/cms media delete --schema cms_acme --id <uuid>
+```
+
+### `settings` — Key/value configuration
+
+```bash
+npx @bullfinch/cms settings list --schema cms_acme
+npx @bullfinch/cms settings get --schema cms_acme --key site_name
+npx @bullfinch/cms settings set --schema cms_acme --key site_name --value "Acme Corp"
+```
+
+### `users` — Manage CMS users
+
+```bash
+npx @bullfinch/cms users list --schema cms_acme
+npx @bullfinch/cms users get --schema cms_acme --id <uuid>
+npx @bullfinch/cms users update --schema cms_acme --id <uuid> --role Admin --first-name Jane --last-name Doe
+```
+
 ### `init` — Create a new client schema
 
 ```bash
@@ -719,10 +780,37 @@ Applies any pending migrations. Safe to run multiple times (idempotent).
 ### `export` — Generate export command for offboarding
 
 ```bash
-npx @bullfinch/cms export --schema cms_acme --output ./backup.sql
+npx @bullfinch/cms export --schema cms_acme [--output ./backup.sql]
 ```
 
 Prints the `pg_dump` command to export the client's complete schema and data.
+
+---
+
+## AI Agent Integration
+
+The CLI is designed for programmatic control by AI agents. All commands support `--json` output for reliable parsing, and the command structure maps directly to CRUD operations on CMS resources.
+
+**Agent setup:** See [`skill/SKILL.md`](skill/SKILL.md) for the full AgentSkill reference — field types, workflows, and tips for automated CMS management.
+
+**Security note:** The CLI uses the Supabase `service_role` key, which bypasses Row Level Security. This is superuser access — the agent can read and write all data across all schemas. Treat the key accordingly.
+
+**Example: OpenClaw agent creating a client site**
+
+```bash
+# Initialize
+npx @bullfinch/cms init --schema cms_newclient --name "New Client" --json
+
+# Discover what models exist
+npx @bullfinch/cms models list --schema cms_newclient --json
+
+# Create content and publish
+npx @bullfinch/cms entries create --schema cms_newclient \
+  --model homepage --title "Home" \
+  --fields '{"hero_title":"Welcome","hero_body":"We do great work."}' --json
+
+npx @bullfinch/cms entries publish --schema cms_newclient --id <entry-uuid> --json
+```
 
 ---
 
