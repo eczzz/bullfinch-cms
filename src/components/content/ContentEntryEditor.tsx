@@ -504,19 +504,12 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
                   onClick={async () => {
                     setShowBuildModal(false);
                     try {
-                      // Check for config hook first, then fall back to settings
-                      if (config.hooks?.onBuildRequest) {
-                        await config.hooks.onBuildRequest();
+                      const { data } = await supabase.from('settings').select('value').eq('key', 'integration_netlify_build_hook').single();
+                      if (data?.value) {
+                        await fetch(data.value, { method: 'POST' });
                         setToast({ type: 'success', title: 'Build triggered' });
                       } else {
-                        // Read build hook URL from settings
-                        const { data } = await supabase.from('settings').select('value').eq('key', 'integration_netlify_build_hook').single();
-                        if (data?.value) {
-                          await fetch(data.value, { method: 'POST' });
-                          setToast({ type: 'success', title: 'Build triggered' });
-                        } else {
-                          setToast({ type: 'error', title: 'No build hook configured', message: 'Add a Netlify build hook in Settings → Integrations' });
-                        }
+                        setToast({ type: 'error', title: 'No build hook configured', message: 'Add a Netlify build hook in Settings → Integrations' });
                       }
                     } catch (err: any) {
                       setToast({ type: 'error', title: 'Build failed', message: err.message });

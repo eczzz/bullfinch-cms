@@ -200,7 +200,6 @@ export interface CMSHooks {
   onAfterSave?: (entry: ContentEntry) => void | Promise<void>;
   onBeforeDelete?: (entry: ContentEntry) => boolean | Promise<boolean>;
   onAfterDelete?: (entry: ContentEntry) => void | Promise<void>;
-  onBuildRequest?: () => void | Promise<void>;
   onMediaUpload?: (file: File, result: MediaItem) => void | Promise<void>;
 }
 
