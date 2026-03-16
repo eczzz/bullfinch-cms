@@ -120,21 +120,12 @@ export function MediaPicker({ value, onChange }: MediaPickerProps) {
           </button>
         </div>
       ) : (
-        <div className="flex items-center gap-2">
-          <button
-            onClick={() => setShowPicker(true)}
-            className="border-2 border-dashed border-gray-300 rounded-lg px-6 py-4 text-sm text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/50 transition-all flex items-center gap-2"
-          >
-            <Upload className="w-4 h-4" /> Choose media
-          </button>
-          <span className="text-xs text-gray-400">or</span>
-          <button
-            onClick={() => { setShowPicker(true); setPickerTab('url'); }}
-            className="border-2 border-dashed border-gray-300 rounded-lg px-6 py-4 text-sm text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/50 transition-all flex items-center gap-2"
-          >
-            <Link className="w-4 h-4" /> Paste URL
-          </button>
-        </div>
+        <button
+          onClick={() => setShowPicker(true)}
+          className="border-2 border-dashed border-gray-300 rounded-lg px-6 py-4 text-sm text-gray-500 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/50 transition-all flex items-center gap-2"
+        >
+          <Upload className="w-4 h-4" /> Choose media
+        </button>
       )}
 
       {/* Picker modal */}
