@@ -3,13 +3,13 @@ import { Feather } from 'lucide-react';
 import { useCMS } from '../provider';
 
 export function Login() {
-  const { login, config } = useCMS();
+  const { login, branding } = useCMS();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const businessName = config.branding?.businessName || 'CMS';
+  const businessName = branding.businessName || 'CMS';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,8 +29,8 @@ export function Login() {
       <div className="w-full max-w-sm">
         {/* Header */}
         <div className="text-center mb-8">
-          {config.branding?.logoUrl ? (
-            <img src={config.branding.logoUrl} alt={businessName} className="h-10 mx-auto mb-4" />
+          {branding.logoUrl ? (
+            <img src={branding.logoUrl} alt={businessName} className="h-10 mx-auto mb-4" />
           ) : (
             <div className="w-10 h-10 cms-accent-bg rounded-lg flex items-center justify-center mx-auto mb-4">
               <Feather className="w-5 h-5 text-white" />
