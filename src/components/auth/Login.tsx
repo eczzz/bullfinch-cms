@@ -24,20 +24,22 @@ export function Login() {
     }
   };
 
+  const bgColor = branding.sidebarBg || '#1a1d23';
+  const textColor = branding.sidebarText || '#8b96ac';
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+    <div className="min-h-screen flex items-center justify-center p-4" style={{ backgroundColor: bgColor }}>
       <div className="w-full max-w-sm">
         {/* Header */}
         <div className="text-center mb-8">
           {branding.logoUrl ? (
-            <img src={branding.logoUrl} alt={businessName} className="h-10 mx-auto mb-4" />
+            <img src={branding.logoUrl} alt={businessName} className="h-16 mx-auto mb-4" />
           ) : (
             <div className="w-10 h-10 cms-accent-bg rounded-lg flex items-center justify-center mx-auto mb-4">
               <Feather className="w-5 h-5 text-white" />
             </div>
           )}
-          <h1 className="text-xl font-semibold tracking-tight text-gray-900">{businessName}</h1>
-          <p className="text-sm text-gray-500 mt-1">Sign in to your account</p>
+          <p className="text-sm mt-1" style={{ color: textColor }}>Sign in to your account</p>
         </div>
 
         {/* Card */}
@@ -56,7 +58,7 @@ export function Login() {
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: textColor }}>Email</label>
               <input
                 type="email"
                 value={email}
@@ -67,7 +69,7 @@ export function Login() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+              <label className="block text-sm font-medium mb-1.5" style={{ color: textColor }}>Password</label>
               <input
                 type="password"
                 value={password}
