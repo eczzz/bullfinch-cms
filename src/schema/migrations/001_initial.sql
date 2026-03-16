@@ -177,6 +177,7 @@ CREATE TABLE IF NOT EXISTS SCHEMA_NAME.settings (
 ALTER TABLE SCHEMA_NAME.settings ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "settings_select" ON SCHEMA_NAME.settings FOR SELECT TO authenticated USING (true);
+CREATE POLICY "settings_select_branding" ON SCHEMA_NAME.settings FOR SELECT TO anon USING (key LIKE 'branding_%');
 CREATE POLICY "settings_update" ON SCHEMA_NAME.settings FOR UPDATE TO authenticated USING (true) WITH CHECK (true);
 CREATE POLICY "settings_insert" ON SCHEMA_NAME.settings FOR INSERT TO authenticated WITH CHECK (true);
 
