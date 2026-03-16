@@ -43,6 +43,7 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
   const [showStatusMenu, setShowStatusMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [showBuildModal, setShowBuildModal] = useState(false);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; title: string; message?: string } | null>(null);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
@@ -138,7 +139,12 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
         }
         if (config.hooks?.onAfterSave) await config.hooks.onAfterSave(saved);
         setHasUnsavedChanges(false);
-        setToast({ type: 'success', title: 'Entry saved' });
+        const effectiveStatus = newStatus || status;
+        if (effectiveStatus === 'published') {
+          setShowBuildModal(true);
+        } else {
+          setToast({ type: 'success', title: 'Entry saved' });
+        }
       } else {
         const saved = await createContentEntry(supabase, {
           ...entry,
@@ -148,8 +154,13 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
         });
         if (config.hooks?.onAfterSave) await config.hooks.onAfterSave(saved);
         setHasUnsavedChanges(false);
-        setToast({ type: 'success', title: 'Entry created' });
         navigate(`/models/${modelId}/entries/${saved.id}`);
+        const effectiveStatus = newStatus || status;
+        if (effectiveStatus === 'published') {
+          setShowBuildModal(true);
+        } else {
+          setToast({ type: 'success', title: 'Entry created' });
+        }
       }
     } catch (err: any) {
       setToast({ type: 'error', title: 'Save failed', message: err.message });
@@ -277,14 +288,14 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
                 </span>
               )}
 
-              {/* Save Draft */}
+              {/* Save / Update */}
               <button
                 onClick={() => handleSave()}
                 disabled={saving}
                 className="inline-flex items-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-white text-gray-700 hover:bg-gray-50 ring-1 ring-gray-200 shadow-sm transition-all disabled:opacity-50"
               >
                 <Save className="w-4 h-4" />
-                {saving ? 'Saving…' : 'Save Draft'}
+                {saving ? 'Saving…' : status === 'published' ? 'Update' : 'Save Draft'}
               </button>
 
               {/* Publish */}
@@ -472,6 +483,48 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
       )}
 
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+
+      {/* Build Production Modal */}
+      {showBuildModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm" onClick={() => { setShowBuildModal(false); setToast({ type: 'success', title: 'Changes saved' }); }} />
+          <div className="relative bg-white rounded-xl shadow-lg w-full max-w-md border border-gray-200 p-6">
+            <div className="text-center space-y-4">
+              <div className="w-12 h-12 rounded-full bg-green-50 flex items-center justify-center mx-auto">
+                <Eye className="w-6 h-6 text-green-600" />
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Changes Saved</h3>
+                <p className="text-sm text-gray-500 mt-2">
+                  Would you like to rebuild the production site now, or skip if you have more edits to make?
+                </p>
+              </div>
+              <div className="flex flex-col gap-2 pt-2">
+                <button
+                  onClick={() => {
+                    setShowBuildModal(false);
+                    if (config.hooks?.onBuildRequest) {
+                      config.hooks.onBuildRequest();
+                      setToast({ type: 'success', title: 'Build triggered' });
+                    } else {
+                      setToast({ type: 'success', title: 'No build hook configured' });
+                    }
+                  }}
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg cms-btn-accent text-white shadow-sm transition-all"
+                >
+                  Build Production Site
+                </button>
+                <button
+                  onClick={() => { setShowBuildModal(false); setToast({ type: 'success', title: 'Changes saved — build skipped' }); }}
+                  className="w-full inline-flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium rounded-lg text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all"
+                >
+                  Skip — I have more changes
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
