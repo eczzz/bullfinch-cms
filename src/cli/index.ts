@@ -606,6 +606,11 @@ async function cmdEntriesCreate(flags: Record<string, string | true>): Promise<v
     entry.fields = parseFieldsArg(fieldsRaw);
   }
 
+  const seoRaw = optionalFlag(flags, 'seo');
+  if (seoRaw) {
+    entry.seo = parseFieldsArg(seoRaw);
+  }
+
   if (entry.status === 'published') {
     entry.published_at = new Date().toISOString();
   }
@@ -629,6 +634,7 @@ async function cmdEntriesUpdate(flags: Record<string, string | true>): Promise<v
   if (optionalFlag(flags, 'title')) updates.title = optionalFlag(flags, 'title');
   if (optionalFlag(flags, 'status')) updates.status = optionalFlag(flags, 'status');
   if (optionalFlag(flags, 'fields')) updates.fields = parseFieldsArg(optionalFlag(flags, 'fields')!);
+  if (optionalFlag(flags, 'seo')) updates.seo = parseFieldsArg(optionalFlag(flags, 'seo')!);
 
   if (updates.status === 'published') {
     updates.published_at = new Date().toISOString();
@@ -917,14 +923,16 @@ Usage: bullfinch-cms entries <subcommand> [flags]
 Subcommands:
   list       --schema <name> --model <api_id> [--status draft|published|archived] [--limit N]
   get        --schema <name> --id <uuid>
-  create     --schema <name> --model <api_id> --title <title> [--fields <json>] [--status draft|published]
-  update     --schema <name> --id <uuid> [--title <title>] [--fields <json>] [--status <status>]
+  create     --schema <name> --model <api_id> --title <title> [--fields <json>] [--seo <json>] [--status draft|published]
+  update     --schema <name> --id <uuid> [--title <title>] [--fields <json>] [--seo <json>] [--status <status>]
   delete     --schema <name> --id <uuid>
   publish    --schema <name> --id <uuid>
   unpublish  --schema <name> --id <uuid>
 
 Notes:
   --fields accepts inline JSON or a path to a .json file
+  --seo accepts inline JSON or a path to a .json file
+    Keys: metaTitle, metaDescription, ogImage, ogTitle, ogDescription, canonicalUrl, noIndex, structuredData
 
 Flags:
   --json    Output in JSON format
