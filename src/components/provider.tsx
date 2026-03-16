@@ -76,6 +76,15 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
 
       setBranding(merged);
 
+      // Inject accent color as CSS custom property for global button theming
+      const root = document.documentElement;
+      if (merged.accentColor) {
+        root.style.setProperty('--cms-accent', merged.accentColor);
+      }
+      if (merged.primaryColor) {
+        root.style.setProperty('--cms-primary', merged.primaryColor);
+      }
+
       if (merged.faviconUrl) {
         applyFavicon(merged.faviconUrl);
       }
@@ -143,5 +152,24 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
     refreshBranding: loadBranding,
   };
 
-  return <CMSContext.Provider value={value}>{children}</CMSContext.Provider>;
+  return (
+    <CMSContext.Provider value={value}>
+      <style>{`
+        :root {
+          --cms-accent: #2563eb;
+          --cms-primary: #2563eb;
+        }
+        .cms-btn-accent {
+          background-color: var(--cms-accent) !important;
+        }
+        .cms-btn-accent:hover {
+          filter: brightness(0.9);
+        }
+        .cms-accent-bg {
+          background-color: var(--cms-accent) !important;
+        }
+      `}</style>
+      {children}
+    </CMSContext.Provider>
+  );
 }

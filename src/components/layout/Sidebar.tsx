@@ -11,8 +11,7 @@ const DEFAULTS = {
   sidebarBg: '#111827',      // gray-900
   sidebarText: '#ffffff',
   primaryColor: '#2563eb',   // blue-600
-  borderColor: '#1f2937',    // gray-800
-  mutedText: '#6b7280',      // gray-500
+  accentColor: '#2563eb',    // blue-600
 };
 
 interface SidebarProps {
@@ -33,6 +32,7 @@ export function Sidebar({ currentRoute }: SidebarProps) {
   const sidebarBg = branding.sidebarBg || DEFAULTS.sidebarBg;
   const sidebarText = branding.sidebarText || DEFAULTS.sidebarText;
   const primaryColor = branding.primaryColor || DEFAULTS.primaryColor;
+  const accentColor = branding.accentColor || DEFAULTS.accentColor;
 
   const isActive = (page: string) => currentRoute.page === page;
   const isModelActive = (modelId: string) =>
@@ -49,13 +49,13 @@ export function Sidebar({ currentRoute }: SidebarProps) {
       {/* Logo */}
       <div
         className={`px-4 py-4 flex items-center ${collapsed ? 'justify-start gap-2.5' : 'justify-center'}`}
-        style={{ borderBottom: `1px solid ${sidebarText}15`, minHeight: 56 }}
+        style={{ borderBottom: `1px solid ${sidebarBg}`, minHeight: 56 }}
       >
         {/* Icon — show when collapsed, or when expanded without a logo */}
         <div
-          className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-150 ${
-            !collapsed && branding.logoUrl ? 'w-0 h-0 opacity-0' : 'opacity-100'
-          }`}
+          className={`flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-150 ${
+            !collapsed && branding.logoUrl ? 'w-0 h-0 opacity-0' : 'w-7 h-7 opacity-100'
+          } ${branding.iconUrl ? '' : 'rounded-lg'}`}
           style={branding.iconUrl ? undefined : { backgroundColor: primaryColor }}
         >
           {branding.iconUrl ? (
@@ -79,7 +79,7 @@ export function Sidebar({ currentRoute }: SidebarProps) {
       <nav className="flex-1 px-3 py-3 overflow-y-auto overflow-x-hidden space-y-1">
         {/* CONTENT section header */}
         <div className={`px-2.5 pt-2 pb-1 transition-opacity duration-150 ${collapsed ? 'opacity-0' : 'opacity-100'}`}>
-          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: `${sidebarText}60` }}>Content</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: sidebarText }}>Content</p>
         </div>
 
         {/* Content Models link */}
@@ -89,22 +89,21 @@ export function Sidebar({ currentRoute }: SidebarProps) {
           icon={Database}
           label="Content Models"
           collapsed={collapsed}
-          primaryColor={primaryColor}
+          accentColor={accentColor}
           textColor={sidebarText}
+          sidebarBg={sidebarBg}
         />
 
         {/* Collapsible content models list */}
         <button
           onClick={() => setContentExpanded(!contentExpanded)}
           className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all duration-150"
-          style={{ color: `${sidebarText}99` }}
+          style={{ color: sidebarText }}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = `${sidebarText}15`;
-            e.currentTarget.style.color = sidebarText;
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = `${sidebarText}99`;
           }}
         >
           <File className="w-4 h-4 flex-shrink-0" />
@@ -113,8 +112,8 @@ export function Sidebar({ currentRoute }: SidebarProps) {
           </span>
           {!collapsed && (
             contentExpanded
-              ? <ChevronDown className="w-3 h-3 opacity-60" />
-              : <ChevronRight className="w-3 h-3 opacity-60" />
+              ? <ChevronDown className="w-3 h-3" />
+              : <ChevronRight className="w-3 h-3" />
           )}
         </button>
 
@@ -128,8 +127,9 @@ export function Sidebar({ currentRoute }: SidebarProps) {
                 icon={File}
                 label={m.name}
                 collapsed={collapsed}
-                primaryColor={primaryColor}
+                accentColor={accentColor}
                 textColor={sidebarText}
+                sidebarBg={sidebarBg}
                 sub
               />
             ))}
@@ -143,13 +143,14 @@ export function Sidebar({ currentRoute }: SidebarProps) {
           icon={Images}
           label="Media"
           collapsed={collapsed}
-          primaryColor={primaryColor}
+          accentColor={accentColor}
           textColor={sidebarText}
+          sidebarBg={sidebarBg}
         />
 
         {/* SETTINGS section header */}
         <div className={`px-2.5 pt-4 pb-1 transition-opacity duration-150 ${collapsed ? 'opacity-0' : 'opacity-100'}`}>
-          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: `${sidebarText}60` }}>Settings</p>
+          <p className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: sidebarText }}>Settings</p>
         </div>
 
         <NavLink
@@ -158,8 +159,9 @@ export function Sidebar({ currentRoute }: SidebarProps) {
           icon={Settings}
           label="Settings"
           collapsed={collapsed}
-          primaryColor={primaryColor}
+          accentColor={accentColor}
           textColor={sidebarText}
+          sidebarBg={sidebarBg}
         />
 
         {/* Custom sidebar items */}
@@ -171,8 +173,9 @@ export function Sidebar({ currentRoute }: SidebarProps) {
             icon={() => <span className="w-4 h-4 flex items-center justify-center text-xs">{item.icon || '📄'}</span>}
             label={item.label}
             collapsed={collapsed}
-            primaryColor={primaryColor}
+            accentColor={accentColor}
             textColor={sidebarText}
+            sidebarBg={sidebarBg}
           />
         ))}
       </nav>
@@ -180,20 +183,18 @@ export function Sidebar({ currentRoute }: SidebarProps) {
       {/* Footer — user info + sign out */}
       <div className="px-3 py-3" style={{ borderTop: `1px solid ${sidebarText}15` }}>
         {!collapsed && user && (
-          <div className="text-xs px-2.5 mb-2 truncate" style={{ color: `${sidebarText}60` }}>{user.email}</div>
+          <div className="text-xs px-2.5 mb-2 truncate" style={{ color: sidebarText }}>{user.email}</div>
         )}
         <button
           onClick={logout}
           className="w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-all duration-150"
-          style={{ color: `${sidebarText}99` }}
+          style={{ color: sidebarText }}
           title={collapsed ? 'Sign Out' : undefined}
           onMouseEnter={(e) => {
             e.currentTarget.style.backgroundColor = `${sidebarText}15`;
-            e.currentTarget.style.color = sidebarText;
           }}
           onMouseLeave={(e) => {
             e.currentTarget.style.backgroundColor = 'transparent';
-            e.currentTarget.style.color = `${sidebarText}99`;
           }}
         >
           <LogOut className="w-4 h-4 flex-shrink-0" />
@@ -214,19 +215,20 @@ interface NavLinkProps {
   icon: React.ComponentType<{ className?: string }>;
   label: string;
   collapsed: boolean;
-  primaryColor: string;
+  accentColor: string;
   textColor: string;
+  sidebarBg: string;
   sub?: boolean;
 }
 
-function NavLink({ href, active, icon: Icon, label, collapsed, primaryColor, textColor, sub }: NavLinkProps) {
+function NavLink({ href, active, icon: Icon, label, collapsed, accentColor, textColor, sidebarBg, sub }: NavLinkProps) {
   const [hovered, setHovered] = useState(false);
 
   const style: React.CSSProperties = active
-    ? { backgroundColor: primaryColor, color: '#ffffff' }
+    ? { backgroundColor: accentColor, color: '#ffffff' }
     : hovered
       ? { backgroundColor: `${textColor}15`, color: textColor }
-      : { color: `${textColor}99` };
+      : { color: textColor };
 
   return (
     <a

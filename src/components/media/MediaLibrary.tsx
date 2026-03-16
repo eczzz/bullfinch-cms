@@ -137,7 +137,7 @@ export function MediaLibrary() {
           </button>
           <button
             onClick={() => setShowUpload(!showUpload)}
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
+            className="inline-flex items-center gap-2 cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
           >
             <Upload className="w-4 h-4" />
             Upload
@@ -203,7 +203,7 @@ export function MediaLibrary() {
           {media.length === 0 && (
             <button
               onClick={() => setShowUpload(true)}
-              className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
+              className="inline-flex items-center gap-2 cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
             >
               <Upload className="w-4 h-4" />
               Upload Files

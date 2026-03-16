@@ -205,7 +205,7 @@ export function MediaPicker({ value, onChange }: MediaPickerProps) {
                           <p className="text-[10px] text-gray-400">{formatFileSize(m.size)}</p>
                         </div>
                         {isSelected && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-blue-600 flex items-center justify-center">
+                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full cms-accent-bg flex items-center justify-center">
                             <Check className="w-3 h-3 text-white" />
                           </div>
                         )}
@@ -227,7 +227,7 @@ export function MediaPicker({ value, onChange }: MediaPickerProps) {
               <button
                 onClick={handleConfirm}
                 disabled={!selectedUrl}
-                className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                className="inline-flex items-center gap-2 cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <Check className="w-4 h-4" />
                 Select

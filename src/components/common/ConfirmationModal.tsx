@@ -38,7 +38,7 @@ export function ConfirmationModal({
     info: {
       icon: <Info className="w-5 h-5 text-blue-600" />,
       iconBg: 'bg-blue-50',
-      button: 'bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm',
+      button: 'cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm',
     },
   };
 

@@ -23,7 +23,7 @@ const STYLE_OPTIONS: Array<{ value: string; label: string }> = [
 ];
 
 const STYLE_CLASSES: Record<string, string> = {
-  primary: 'bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm',
+  primary: 'cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm',
   secondary: 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50 rounded-lg px-4 py-2 text-sm font-medium shadow-sm',
   ghost: 'text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-lg px-4 py-2 text-sm font-medium',
 };
@@ -90,7 +90,7 @@ export function ButtonField({ value, onChange }: ButtonFieldProps) {
             onClick={() => update({ target: value.target === '_blank' ? '_self' : '_blank' })}
             className="relative mt-1"
           >
-            <div className={`w-10 h-[22px] rounded-full p-[2px] cursor-pointer transition-colors duration-200 ${value.target === '_blank' ? 'bg-blue-600' : 'bg-gray-200'}`}>
+            <div className={`w-10 h-[22px] rounded-full p-[2px] cursor-pointer transition-colors duration-200 ${value.target === '_blank' ? 'cms-accent-bg' : 'bg-gray-200'}`}>
               <div className={`w-[18px] h-[18px] bg-white rounded-full shadow-sm transition-transform duration-200 ${value.target === '_blank' ? 'translate-x-[20px]' : 'translate-x-0'}`} />
             </div>
           </button>

@@ -32,7 +32,7 @@ export function Login() {
           {config.branding?.logoUrl ? (
             <img src={config.branding.logoUrl} alt={businessName} className="h-10 mx-auto mb-4" />
           ) : (
-            <div className="w-10 h-10 bg-blue-600 rounded-lg flex items-center justify-center mx-auto mb-4">
+            <div className="w-10 h-10 cms-accent-bg rounded-lg flex items-center justify-center mx-auto mb-4">
               <Feather className="w-5 h-5 text-white" />
             </div>
           )}
@@ -80,7 +80,7 @@ export function Login() {
             <button
               type="submit"
               disabled={loading}
-              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg bg-blue-600 text-white hover:bg-blue-700 shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium rounded-lg cms-btn-accent text-white shadow-sm transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {loading ? (
                 <>

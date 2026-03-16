@@ -76,7 +76,7 @@ export function MediaCard({ media, onDelete, selectable, selected, onToggleSelec
               <div
                 className={`w-5 h-5 rounded-md flex items-center justify-center transition-all ${
                   selected
-                    ? 'bg-blue-600 text-white'
+                    ? 'cms-accent-bg text-white'
                     : 'bg-white/90 ring-1 ring-gray-300 text-transparent'
                 }`}
               >

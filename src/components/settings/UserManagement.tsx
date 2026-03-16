@@ -64,7 +64,7 @@ export function UserManagement() {
             setSelectedUser(null);
             setIsEditorOpen(true);
           }}
-          className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
+          className="inline-flex items-center gap-2 cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
         >
           <Plus className="w-4 h-4" />
           Add User

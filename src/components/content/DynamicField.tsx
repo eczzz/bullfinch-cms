@@ -139,7 +139,7 @@ export function DynamicField({ field, value, onChange, error, disabled, compact 
               className="relative flex-shrink-0"
               disabled={disabled}
             >
-              <div className={`w-10 h-[22px] rounded-full p-[2px] cursor-pointer transition-colors duration-200 ${value ? 'bg-blue-600' : 'bg-gray-200'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
+              <div className={`w-10 h-[22px] rounded-full p-[2px] cursor-pointer transition-colors duration-200 ${value ? 'cms-accent-bg' : 'bg-gray-200'} ${disabled ? 'opacity-50 cursor-not-allowed' : ''}`}>
                 <div className={`w-[18px] h-[18px] bg-white rounded-full shadow-sm transition-transform duration-200 ${value ? 'translate-x-[20px]' : 'translate-x-0'}`} />
               </div>
             </button>

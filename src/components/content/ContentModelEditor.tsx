@@ -208,7 +208,7 @@ export function ContentModelEditor({ modelId }: ContentModelEditorProps) {
           <button
             onClick={handleSave}
             disabled={saving}
-            className="inline-flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all disabled:opacity-50"
+            className="inline-flex items-center gap-2 cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all disabled:opacity-50"
           >
             <Save className="w-4 h-4" /> {saving ? 'Saving…' : 'Save'}
           </button>
@@ -304,7 +304,7 @@ export function ContentModelEditor({ modelId }: ContentModelEditorProps) {
               </h2>
               <button
                 onClick={() => setShowFieldTypeSelector(true)}
-                className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm transition-all"
+                className="inline-flex items-center gap-1.5 cms-btn-accent text-white rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm transition-all"
               >
                 <Plus className="w-3.5 h-3.5" /> Add Field
               </button>
@@ -318,7 +318,7 @@ export function ContentModelEditor({ modelId }: ContentModelEditorProps) {
                 <p className="text-sm text-gray-500 mb-3">No fields defined yet</p>
                 <button
                   onClick={() => setShowFieldTypeSelector(true)}
-                  className="inline-flex items-center gap-1.5 bg-blue-600 hover:bg-blue-700 text-white rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm transition-all"
+                  className="inline-flex items-center gap-1.5 cms-btn-accent text-white rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm transition-all"
                 >
                   <Plus className="w-3.5 h-3.5" /> Add First Field
                 </button>
