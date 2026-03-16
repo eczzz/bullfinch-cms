@@ -325,10 +325,18 @@ export function Settings() {
                 <div key={key}>
                   <label className="block text-sm font-medium text-gray-700 mb-1.5">{label}</label>
                   <div className="flex items-center gap-2">
-                    <span
-                      className="w-5 h-5 rounded border border-gray-300 flex-shrink-0"
-                      style={{ backgroundColor: settings[key] || '#ffffff' }}
-                    />
+                    <label className="relative w-8 h-8 rounded-lg border border-gray-300 flex-shrink-0 cursor-pointer overflow-hidden">
+                      <input
+                        type="color"
+                        value={settings[key] || '#ffffff'}
+                        onChange={(e) => setSettings((p) => ({ ...p, [key]: e.target.value }))}
+                        className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                      />
+                      <span
+                        className="block w-full h-full rounded-lg"
+                        style={{ backgroundColor: settings[key] || '#ffffff' }}
+                      />
+                    </label>
                     <input
                       type="text"
                       value={settings[key] || ''}
