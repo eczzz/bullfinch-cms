@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Plus, Pencil, Trash2, Eye, FileText, Search } from 'lucide-react';
 import { useSupabase } from '../provider';
 import {
@@ -45,6 +45,8 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
   const [statusFilter, setStatusFilter] = useState<EntryStatus | 'all'>('all');
   const [page, setPage] = useState(1);
   const [deleteTarget, setDeleteTarget] = useState<ContentEntry | null>(null);
+  const [showCreateMenu, setShowCreateMenu] = useState(false);
+  const createMenuRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<{ type: 'success' | 'error'; title: string; message?: string } | null>(null);
 
   // Load all models for the dropdown
@@ -130,6 +132,17 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
   // Reset page when filters change
   useEffect(() => { setPage(1); }, [search, statusFilter]);
 
+  // Close create menu on outside click
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (createMenuRef.current && !createMenuRef.current.contains(e.target as Node)) {
+        setShowCreateMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
   // Resolve the model ID for navigation (entry row click, new entry, etc.)
   const getEntryModelId = (entry: ContentEntry) => entry.content_model_id;
   const activeModelId = selectedModelId || '';
@@ -168,25 +181,39 @@ export function ContentEntriesList({ modelId }: ContentEntriesListProps) {
             {selectedModel ? selectedModel.description || `Manage ${selectedModel.name} entries` : 'Manage all content entries'}
           </p>
         </div>
-        <button
-          onClick={() => {
-            if (activeModelId) {
-              navigate(`/models/${activeModelId}/entries/new`);
-            } else if (models.length === 1) {
-              navigate(`/models/${models[0].id}/entries/new`);
-            } else {
-              // If no model selected and multiple exist, select the first one then create
-              const firstModel = models[0];
-              if (firstModel) {
-                setSelectedModelId(firstModel.id);
-                navigate(`/models/${firstModel.id}/entries/new`);
+        {/* Create button — uses selected model, or shows a picker if multiple */}
+        <div className="relative" ref={createMenuRef}>
+          <button
+            onClick={() => {
+              if (activeModelId) {
+                navigate(`/models/${activeModelId}/entries/new`);
+              } else if (models.length === 1) {
+                navigate(`/models/${models[0].id}/entries/new`);
+              } else {
+                setShowCreateMenu((v) => !v);
               }
-            }
-          }}
-          className="inline-flex items-center gap-2 cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
-        >
-          <Plus className="w-4 h-4" /> Create
-        </button>
+            }}
+            className="inline-flex items-center gap-2 cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
+          >
+            <Plus className="w-4 h-4" /> Create
+          </button>
+          {showCreateMenu && !activeModelId && models.length > 1 && (
+            <div className="absolute right-0 mt-1 w-56 bg-white rounded-lg shadow-lg ring-1 ring-gray-200 py-1 z-50">
+              {models.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    setShowCreateMenu(false);
+                    navigate(`/models/${m.id}/entries/new`);
+                  }}
+                  className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                >
+                  {m.name}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Filter bar */}
