@@ -42,19 +42,19 @@ export function Sidebar({ currentRoute }: SidebarProps) {
   return (
     <div
       className="flex flex-col h-screen transition-all duration-300 overflow-hidden flex-shrink-0"
-      style={{ width: collapsed ? 64 : 256, backgroundColor: sidebarBg, color: sidebarText }}
+      style={{ width: collapsed ? 64 : 208, backgroundColor: sidebarBg, color: sidebarText }}
       onMouseEnter={() => setCollapsed(false)}
       onMouseLeave={() => setCollapsed(true)}
     >
       {/* Logo */}
       <div
-        className="px-4 py-4 flex items-center gap-2.5"
+        className={`px-4 py-4 flex items-center ${collapsed ? 'justify-start gap-2.5' : 'justify-center'}`}
         style={{ borderBottom: `1px solid ${sidebarText}15`, minHeight: 56 }}
       >
-        {/* Icon — hide when expanded AND a logo is set */}
+        {/* Icon — show when collapsed, or when expanded without a logo */}
         <div
           className={`w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 overflow-hidden transition-all duration-150 ${
-            !collapsed && branding.logoUrl ? 'w-0 opacity-0' : 'opacity-100'
+            !collapsed && branding.logoUrl ? 'w-0 h-0 opacity-0' : 'opacity-100'
           }`}
           style={{ backgroundColor: primaryColor }}
         >
@@ -66,7 +66,7 @@ export function Sidebar({ currentRoute }: SidebarProps) {
         </div>
         <div className={`transition-opacity duration-150 ${collapsed ? 'opacity-0 w-0 overflow-hidden' : 'opacity-100'}`}>
           {branding.logoUrl ? (
-            <img src={branding.logoUrl} alt="Logo" className="max-h-10 object-contain" />
+            <img src={branding.logoUrl} alt="Logo" className="max-h-14 object-contain" />
           ) : (
             <p className="text-sm font-semibold whitespace-nowrap" style={{ color: sidebarText }}>
               {branding.businessName || 'CMS'}
