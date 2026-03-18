@@ -191,7 +191,23 @@ INSERT INTO SCHEMA_NAME.settings (key, value) VALUES
   ('site_description', ''),
   ('contact_email', ''),
   ('contact_phone', ''),
-  ('address', '')
+  ('address', ''),
+  ('contact_address', ''),
+  ('footer_body', ''),
+  ('footer_tagline', ''),
+  ('branding_primary_color', ''),
+  ('branding_accent_color', ''),
+  ('branding_logo', ''),
+  ('branding_icon', ''),
+  ('branding_favicon', ''),
+  ('branding_sidebar_bg', ''),
+  ('branding_sidebar_text', ''),
+  ('integration_netlify_build_hook', ''),
+  ('integration_r2_account_id', ''),
+  ('integration_r2_access_key_id', ''),
+  ('integration_r2_secret_access_key', ''),
+  ('integration_r2_bucket_name', ''),
+  ('integration_r2_public_url', '')
 ON CONFLICT (key) DO NOTHING;
 
 -- ============================================================================
