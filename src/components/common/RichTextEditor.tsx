@@ -329,148 +329,149 @@ export function RichTextEditor({
           <EditorContent editor={editor} className="tiptap-content" style={{ minHeight: heightMap[minHeight] }} />
           <style>{`
             .tiptap-content .tiptap {
-              padding: 1rem 1.25rem;
-              outline: none;
+              padding: 1rem 1.25rem !important;
+              outline: none !important;
               min-height: inherit;
             }
             .tiptap-content .tiptap > * + * {
-              margin-top: 0.75em;
+              margin-top: 0.75em !important;
             }
             .tiptap-content .tiptap p {
-              font-size: 0.9375rem;
-              line-height: 1.7;
-              color: #1f2937;
-              margin: 0;
+              font-size: 0.9375rem !important;
+              line-height: 1.7 !important;
+              color: #1f2937 !important;
+              margin: 0 !important;
             }
             .tiptap-content .tiptap p + p {
-              margin-top: 0.75em;
+              margin-top: 0.75em !important;
             }
             .tiptap-content .tiptap h1 {
-              font-size: 1.75rem;
-              font-weight: 700;
-              line-height: 1.3;
-              color: #111827;
-              margin-top: 1.5em;
-              margin-bottom: 0.5em;
+              font-size: 1.75rem !important;
+              font-weight: 700 !important;
+              line-height: 1.3 !important;
+              color: #111827 !important;
+              margin-top: 1.5em !important;
+              margin-bottom: 0.5em !important;
             }
             .tiptap-content .tiptap h2 {
-              font-size: 1.375rem;
-              font-weight: 700;
-              line-height: 1.35;
-              color: #111827;
-              margin-top: 1.5em;
-              margin-bottom: 0.5em;
+              font-size: 1.375rem !important;
+              font-weight: 700 !important;
+              line-height: 1.35 !important;
+              color: #111827 !important;
+              margin-top: 1.5em !important;
+              margin-bottom: 0.5em !important;
             }
             .tiptap-content .tiptap h3 {
-              font-size: 1.125rem;
-              font-weight: 600;
-              line-height: 1.4;
-              color: #111827;
-              margin-top: 1.25em;
-              margin-bottom: 0.5em;
+              font-size: 1.125rem !important;
+              font-weight: 600 !important;
+              line-height: 1.4 !important;
+              color: #111827 !important;
+              margin-top: 1.25em !important;
+              margin-bottom: 0.5em !important;
             }
             .tiptap-content .tiptap h1:first-child,
             .tiptap-content .tiptap h2:first-child,
             .tiptap-content .tiptap h3:first-child {
-              margin-top: 0;
+              margin-top: 0 !important;
             }
             .tiptap-content .tiptap strong {
-              font-weight: 700;
-              color: #111827;
+              font-weight: 700 !important;
+              color: #111827 !important;
             }
             .tiptap-content .tiptap em {
-              font-style: italic;
+              font-style: italic !important;
             }
             .tiptap-content .tiptap u {
-              text-decoration: underline;
+              text-decoration: underline !important;
               text-underline-offset: 2px;
             }
             .tiptap-content .tiptap a {
-              color: #2563eb;
-              text-decoration: underline;
+              color: #2563eb !important;
+              text-decoration: underline !important;
               text-underline-offset: 2px;
-              cursor: pointer;
+              cursor: pointer !important;
             }
             .tiptap-content .tiptap a:hover {
-              color: #1d4ed8;
+              color: #1d4ed8 !important;
             }
             .tiptap-content .tiptap ul {
-              list-style-type: disc;
-              padding-left: 1.5em;
-              margin: 0.75em 0;
+              list-style-type: disc !important;
+              padding-left: 1.5em !important;
+              margin: 0.75em 0 !important;
             }
             .tiptap-content .tiptap ol {
-              list-style-type: decimal;
-              padding-left: 1.5em;
-              margin: 0.75em 0;
+              list-style-type: decimal !important;
+              padding-left: 1.5em !important;
+              margin: 0.75em 0 !important;
             }
             .tiptap-content .tiptap li {
-              font-size: 0.9375rem;
-              line-height: 1.7;
-              color: #1f2937;
-              margin: 0.25em 0;
+              font-size: 0.9375rem !important;
+              line-height: 1.7 !important;
+              color: #1f2937 !important;
+              margin: 0.25em 0 !important;
+              display: list-item !important;
             }
             .tiptap-content .tiptap li p {
-              margin: 0;
+              margin: 0 !important;
             }
             .tiptap-content .tiptap blockquote {
-              border-left: 3px solid #d1d5db;
-              padding-left: 1em;
-              margin: 1em 0;
-              color: #6b7280;
-              font-style: italic;
+              border-left: 3px solid #d1d5db !important;
+              padding-left: 1em !important;
+              margin: 1em 0 !important;
+              color: #6b7280 !important;
+              font-style: italic !important;
             }
             .tiptap-content .tiptap hr {
-              border: none;
-              border-top: 1px solid #e5e7eb;
-              margin: 1.5em 0;
+              border: none !important;
+              border-top: 1px solid #e5e7eb !important;
+              margin: 1.5em 0 !important;
             }
             .tiptap-content .tiptap code {
-              background: #f3f4f6;
-              border-radius: 0.25rem;
-              padding: 0.15em 0.35em;
-              font-size: 0.875em;
-              font-family: ui-monospace, SFMono-Regular, monospace;
-              color: #dc2626;
+              background: #f3f4f6 !important;
+              border-radius: 0.25rem !important;
+              padding: 0.15em 0.35em !important;
+              font-size: 0.875em !important;
+              font-family: ui-monospace, SFMono-Regular, monospace !important;
+              color: #dc2626 !important;
             }
             .tiptap-content .tiptap pre {
-              background: #1f2937;
-              color: #e5e7eb;
-              border-radius: 0.5rem;
-              padding: 1em 1.25em;
-              margin: 1em 0;
-              overflow-x: auto;
-              font-family: ui-monospace, SFMono-Regular, monospace;
-              font-size: 0.875rem;
-              line-height: 1.6;
+              background: #1f2937 !important;
+              color: #e5e7eb !important;
+              border-radius: 0.5rem !important;
+              padding: 1em 1.25em !important;
+              margin: 1em 0 !important;
+              overflow-x: auto !important;
+              font-family: ui-monospace, SFMono-Regular, monospace !important;
+              font-size: 0.875rem !important;
+              line-height: 1.6 !important;
             }
             .tiptap-content .tiptap pre code {
-              background: none;
-              color: inherit;
-              padding: 0;
-              font-size: inherit;
+              background: none !important;
+              color: inherit !important;
+              padding: 0 !important;
+              font-size: inherit !important;
             }
             .tiptap-content .tiptap img {
-              max-width: 100%;
-              height: auto;
-              border-radius: 0.5rem;
-              margin: 1em 0;
+              max-width: 100% !important;
+              height: auto !important;
+              border-radius: 0.5rem !important;
+              margin: 1em 0 !important;
             }
             .tiptap-content .tiptap table {
-              border-collapse: collapse;
-              width: 100%;
-              margin: 1em 0;
+              border-collapse: collapse !important;
+              width: 100% !important;
+              margin: 1em 0 !important;
             }
             .tiptap-content .tiptap th,
             .tiptap-content .tiptap td {
-              border: 1px solid #d1d5db;
-              padding: 0.5em 0.75em;
-              text-align: left;
-              font-size: 0.9375rem;
+              border: 1px solid #d1d5db !important;
+              padding: 0.5em 0.75em !important;
+              text-align: left !important;
+              font-size: 0.9375rem !important;
             }
             .tiptap-content .tiptap th {
-              background: #f9fafb;
-              font-weight: 600;
+              background: #f9fafb !important;
+              font-weight: 600 !important;
             }
             .tiptap-content .tiptap p.is-editor-empty:first-child::before {
               content: attr(data-placeholder);
