@@ -326,7 +326,160 @@ export function RichTextEditor({
 
         {/* Editor Content */}
         <div className="bg-white">
-          <EditorContent editor={editor} className="tiptap-content prose max-w-none" style={{ minHeight: heightMap[minHeight] }} />
+          <EditorContent editor={editor} className="tiptap-content" style={{ minHeight: heightMap[minHeight] }} />
+          <style>{`
+            .tiptap-content .tiptap {
+              padding: 1rem 1.25rem;
+              outline: none;
+              min-height: inherit;
+            }
+            .tiptap-content .tiptap > * + * {
+              margin-top: 0.75em;
+            }
+            .tiptap-content .tiptap p {
+              font-size: 0.9375rem;
+              line-height: 1.7;
+              color: #1f2937;
+              margin: 0;
+            }
+            .tiptap-content .tiptap p + p {
+              margin-top: 0.75em;
+            }
+            .tiptap-content .tiptap h1 {
+              font-size: 1.75rem;
+              font-weight: 700;
+              line-height: 1.3;
+              color: #111827;
+              margin-top: 1.5em;
+              margin-bottom: 0.5em;
+            }
+            .tiptap-content .tiptap h2 {
+              font-size: 1.375rem;
+              font-weight: 700;
+              line-height: 1.35;
+              color: #111827;
+              margin-top: 1.5em;
+              margin-bottom: 0.5em;
+            }
+            .tiptap-content .tiptap h3 {
+              font-size: 1.125rem;
+              font-weight: 600;
+              line-height: 1.4;
+              color: #111827;
+              margin-top: 1.25em;
+              margin-bottom: 0.5em;
+            }
+            .tiptap-content .tiptap h1:first-child,
+            .tiptap-content .tiptap h2:first-child,
+            .tiptap-content .tiptap h3:first-child {
+              margin-top: 0;
+            }
+            .tiptap-content .tiptap strong {
+              font-weight: 700;
+              color: #111827;
+            }
+            .tiptap-content .tiptap em {
+              font-style: italic;
+            }
+            .tiptap-content .tiptap u {
+              text-decoration: underline;
+              text-underline-offset: 2px;
+            }
+            .tiptap-content .tiptap a {
+              color: #2563eb;
+              text-decoration: underline;
+              text-underline-offset: 2px;
+              cursor: pointer;
+            }
+            .tiptap-content .tiptap a:hover {
+              color: #1d4ed8;
+            }
+            .tiptap-content .tiptap ul {
+              list-style-type: disc;
+              padding-left: 1.5em;
+              margin: 0.75em 0;
+            }
+            .tiptap-content .tiptap ol {
+              list-style-type: decimal;
+              padding-left: 1.5em;
+              margin: 0.75em 0;
+            }
+            .tiptap-content .tiptap li {
+              font-size: 0.9375rem;
+              line-height: 1.7;
+              color: #1f2937;
+              margin: 0.25em 0;
+            }
+            .tiptap-content .tiptap li p {
+              margin: 0;
+            }
+            .tiptap-content .tiptap blockquote {
+              border-left: 3px solid #d1d5db;
+              padding-left: 1em;
+              margin: 1em 0;
+              color: #6b7280;
+              font-style: italic;
+            }
+            .tiptap-content .tiptap hr {
+              border: none;
+              border-top: 1px solid #e5e7eb;
+              margin: 1.5em 0;
+            }
+            .tiptap-content .tiptap code {
+              background: #f3f4f6;
+              border-radius: 0.25rem;
+              padding: 0.15em 0.35em;
+              font-size: 0.875em;
+              font-family: ui-monospace, SFMono-Regular, monospace;
+              color: #dc2626;
+            }
+            .tiptap-content .tiptap pre {
+              background: #1f2937;
+              color: #e5e7eb;
+              border-radius: 0.5rem;
+              padding: 1em 1.25em;
+              margin: 1em 0;
+              overflow-x: auto;
+              font-family: ui-monospace, SFMono-Regular, monospace;
+              font-size: 0.875rem;
+              line-height: 1.6;
+            }
+            .tiptap-content .tiptap pre code {
+              background: none;
+              color: inherit;
+              padding: 0;
+              font-size: inherit;
+            }
+            .tiptap-content .tiptap img {
+              max-width: 100%;
+              height: auto;
+              border-radius: 0.5rem;
+              margin: 1em 0;
+            }
+            .tiptap-content .tiptap table {
+              border-collapse: collapse;
+              width: 100%;
+              margin: 1em 0;
+            }
+            .tiptap-content .tiptap th,
+            .tiptap-content .tiptap td {
+              border: 1px solid #d1d5db;
+              padding: 0.5em 0.75em;
+              text-align: left;
+              font-size: 0.9375rem;
+            }
+            .tiptap-content .tiptap th {
+              background: #f9fafb;
+              font-weight: 600;
+            }
+            .tiptap-content .tiptap p.is-editor-empty:first-child::before {
+              content: attr(data-placeholder);
+              float: left;
+              color: #9ca3af;
+              pointer-events: none;
+              height: 0;
+            }
+          `}</style>
         </div>
 
         {/* Word count */}
