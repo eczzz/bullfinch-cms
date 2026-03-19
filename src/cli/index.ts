@@ -148,11 +148,152 @@ function loadMigration(): string {
 const VALID_FIELD_TYPES = new Set([
   'short_text', 'long_text', 'rich_text', 'number', 'boolean',
   'date', 'datetime', 'color', 'select', 'media', 'reference',
-  'button', 'array', 'json', 'url', 'email', 'slug',
+  'button', 'array', 'url', 'email', 'slug',
 ]);
 
+// ─── Levenshtein Distance ───────────────────────────────────────────────────
+
+function levenshtein(a: string, b: string): number {
+  const m = a.length, n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1]
+        ? dp[i - 1][j - 1]
+        : 1 + Math.min(dp[i - 1][j], dp[i][j - 1], dp[i - 1][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+function fuzzyMatch(unknown: string, candidates: string[]): string | null {
+  let best: string | null = null;
+  let bestDist = Infinity;
+  for (const c of candidates) {
+    // Substring match
+    if (c.includes(unknown) || unknown.includes(c)) return c;
+    const dist = levenshtein(unknown, c);
+    if (dist < bestDist) { bestDist = dist; best = c; }
+  }
+  return bestDist <= 2 ? best : null;
+}
+
+// ─── Entry Field Validation ─────────────────────────────────────────────────
+
+function validateEntryFields(
+  entryFields: Record<string, unknown>,
+  modelFields: Array<Record<string, unknown>>,
+  prefix = '',
+): string[] {
+  const errors: string[] = [];
+  const fieldMap = new Map<string, Record<string, unknown>>();
+  for (const mf of modelFields) {
+    fieldMap.set(mf.api_identifier as string, mf);
+  }
+  const validKeys = [...fieldMap.keys()];
+
+  for (const [key, value] of Object.entries(entryFields)) {
+    const fullKey = prefix ? `${prefix}.${key}` : key;
+    const modelField = fieldMap.get(key);
+    if (!modelField) {
+      const suggestion = fuzzyMatch(key, validKeys);
+      const hint = suggestion ? ` Did you mean "${suggestion}"?` : '';
+      errors.push(`Field "${fullKey}" not found in model.${hint}`);
+      continue;
+    }
+    const ft = modelField.field_type as string;
+    const typeErrors = validateFieldValue(fullKey, value, ft, modelField);
+    errors.push(...typeErrors);
+  }
+  return errors;
+}
+
+function validateFieldValue(
+  fullKey: string,
+  value: unknown,
+  fieldType: string,
+  modelField: Record<string, unknown>,
+): string[] {
+  const errors: string[] = [];
+  const tv = typeof value;
+
+  switch (fieldType) {
+    case 'short_text':
+    case 'long_text':
+    case 'rich_text':
+    case 'slug':
+    case 'color':
+    case 'select':
+    case 'date':
+    case 'datetime':
+    case 'media':
+    case 'reference':
+      if (tv !== 'string') {
+        errors.push(`Field "${fullKey}": expected string for ${fieldType}, got ${tv}`);
+      }
+      break;
+    case 'url':
+      if (tv !== 'string') {
+        errors.push(`Field "${fullKey}": expected string for url, got ${tv}`);
+      } else {
+        const s = value as string;
+        if (!s.startsWith('http://') && !s.startsWith('https://') && !s.startsWith('/')) {
+          errors.push(`Field "${fullKey}": url must start with http://, https://, or /`);
+        }
+      }
+      break;
+    case 'email':
+      if (tv !== 'string') {
+        errors.push(`Field "${fullKey}": expected string for email, got ${tv}`);
+      } else if (!(value as string).includes('@')) {
+        errors.push(`Field "${fullKey}": email must contain @`);
+      }
+      break;
+    case 'number':
+      if (tv !== 'number') {
+        errors.push(`Field "${fullKey}": expected number for number, got ${tv}`);
+      }
+      break;
+    case 'boolean':
+      if (tv !== 'boolean') {
+        errors.push(`Field "${fullKey}": expected boolean for boolean, got ${tv}`);
+      }
+      break;
+    case 'button':
+      if (tv !== 'object' || value === null || Array.isArray(value)) {
+        errors.push(`Field "${fullKey}": expected object with text and url for button, got ${Array.isArray(value) ? 'array' : tv}`);
+      } else {
+        const obj = value as Record<string, unknown>;
+        if (typeof obj.text !== 'string') errors.push(`Field "${fullKey}.text": expected string for button text, got ${typeof obj.text}`);
+        if (typeof obj.url !== 'string') errors.push(`Field "${fullKey}.url": expected string for button url, got ${typeof obj.url}`);
+      }
+      break;
+    case 'array':
+      if (!Array.isArray(value)) {
+        errors.push(`Field "${fullKey}": expected array for array, got ${tv}`);
+      } else {
+        const opts = modelField.options as Record<string, unknown> | undefined;
+        if (opts && Array.isArray(opts.item_fields) && opts.item_fields.length > 0) {
+          const itemFields = opts.item_fields as Array<Record<string, unknown>>;
+          for (let i = 0; i < (value as unknown[]).length; i++) {
+            const item = (value as unknown[])[i];
+            if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+              errors.push(...validateEntryFields(item as Record<string, unknown>, itemFields, `${fullKey}[${i}]`));
+            } else {
+              errors.push(`Field "${fullKey}[${i}]": expected object for array item, got ${typeof item}`);
+            }
+          }
+        }
+      }
+      break;
+  }
+  return errors;
+}
+
 /** Normalize and validate a field definition to match FieldDefinition interface */
-function normalizeField(field: Record<string, unknown>, index: number): Record<string, unknown> {
+function normalizeField(field: Record<string, unknown>, index: number, force = false): Record<string, unknown> {
   const normalized: Record<string, unknown> = { ...field };
 
   // Normalize api_id/key → api_identifier
@@ -180,25 +321,68 @@ function normalizeField(field: Record<string, unknown>, index: number): Record<s
     die(`Field "${normalized.api_identifier}" has invalid field_type "${normalized.field_type}". Valid types: ${[...VALID_FIELD_TYPES].join(', ')}`);
   }
 
+  const apiId = normalized.api_identifier as string;
+  const ft = normalized.field_type as string;
+
+  // ── Hard errors (always block) ──
+  if (ft === 'array') {
+    const opts = normalized.options as Record<string, unknown> | undefined;
+    if (!opts || !Array.isArray(opts.item_fields) || opts.item_fields.length === 0) {
+      die(`Array fields must define item_fields in options (field "${apiId}")`);
+    }
+  }
+
+  // ── Soft errors (block unless --force) ──
+  if (ft === 'long_text') {
+    const msg = `"${apiId}" uses long_text — use rich_text for body copy or short_text for single-line text. Pass --force to override.`;
+    if (force) {
+      console.warn(`Warning: ${msg}`);
+    } else {
+      die(msg);
+    }
+  }
+  if (ft === 'short_text' && (/url/i.test(apiId) || /href/i.test(apiId))) {
+    const msg = `"${apiId}" looks like a URL field — use the url type. Pass --force to override.`;
+    if (force) {
+      console.warn(`Warning: ${msg}`);
+    } else {
+      die(msg);
+    }
+  }
+
   // Recursively normalize item_fields in arrays
-  if (normalized.field_type === 'array' && normalized.options) {
+  if (ft === 'array' && normalized.options) {
     const opts = normalized.options as Record<string, unknown>;
     if (Array.isArray(opts.item_fields)) {
-      opts.item_fields = (opts.item_fields as Record<string, unknown>[]).map((sf, si) => normalizeField(sf, si));
+      opts.item_fields = (opts.item_fields as Record<string, unknown>[]).map((sf, si) => normalizeField(sf, si, force));
     }
   }
 
   return normalized;
 }
 
-/** Normalize an array of field definitions */
-function normalizeFields(fields: unknown): unknown {
+/** Normalize an array of field definitions, with convention checks */
+function normalizeFields(fields: unknown, force = false): unknown {
   if (!Array.isArray(fields)) return fields;
-  return fields.map((f, i) => normalizeField(f as Record<string, unknown>, i));
+  const normalized = fields.map((f, i) => normalizeField(f as Record<string, unknown>, i, force));
+
+  // ── Button-pair warnings (never block, just warn) ──
+  const apiIds = new Set(normalized.map((f) => f.api_identifier as string));
+  for (const id of apiIds) {
+    if (id.endsWith('_text')) {
+      const base = id.slice(0, -5);
+      const urlPair = `${base}_url`;
+      if (apiIds.has(urlPair)) {
+        console.warn(`Warning: Fields "${id}" + "${urlPair}" look like a button — consider using the button type instead.`);
+      }
+    }
+  }
+
+  return normalized;
 }
 
 /** Parse --fields value: inline JSON or file path */
-function parseFieldsArg(val: string): unknown {
+function parseFieldsArg(val: string, force = false): unknown {
   const trimmed = val.trim();
   let parsed: unknown;
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
@@ -222,7 +406,7 @@ function parseFieldsArg(val: string): unknown {
     const first = parsed[0] as Record<string, unknown>;
     // If it has field-definition-like keys, normalize
     if (first.field_type || first.type || first.api_identifier || first.api_id || first.key) {
-      return normalizeFields(parsed);
+      return normalizeFields(parsed, force);
     }
   }
   return parsed;
@@ -250,7 +434,7 @@ async function cmdInit(flags: Record<string, string | true>): Promise<void> {
       console.log('\n-- Then run the migration:');
       console.log(sql);
       console.log(`\n-- Seed business name:`);
-      console.log(`INSERT INTO ${schema}.settings (key, value) VALUES ('branding_business_name', '${name.replace(/'/g, "''")}') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`);
+      console.log(`INSERT INTO ${schema}.settings (key, value) VALUES ('site_name', '${name.replace(/'/g, "''")}') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`);
     } else {
       die(`Migration failed: ${error.message}`);
     }
@@ -258,7 +442,7 @@ async function cmdInit(flags: Record<string, string | true>): Promise<void> {
   }
 
   const { error: seedError } = await supabase.rpc('exec_sql', {
-    query: `INSERT INTO ${schema}.settings (key, value) VALUES ('branding_business_name', '${name.replace(/'/g, "''")}') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`,
+    query: `INSERT INTO ${schema}.settings (key, value) VALUES ('site_name', '${name.replace(/'/g, "''")}') ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value;`,
   });
 
   if (seedError) {
@@ -456,6 +640,7 @@ async function cmdModelsCreate(flags: Record<string, string | true>): Promise<vo
   const schema = requireFlag(flags, 'schema');
   const name = requireFlag(flags, 'name');
   const apiId = requireFlag(flags, 'api-id');
+  const force = flags.force === true;
   const supabase = getSupabase(schema);
 
   const model: Record<string, unknown> = {
@@ -468,7 +653,7 @@ async function cmdModelsCreate(flags: Record<string, string | true>): Promise<vo
 
   const fieldsRaw = optionalFlag(flags, 'fields');
   if (fieldsRaw) {
-    model.fields = parseFieldsArg(fieldsRaw);
+    model.fields = parseFieldsArg(fieldsRaw, force);
   }
 
   const { data, error } = await supabase
@@ -484,6 +669,7 @@ async function cmdModelsCreate(flags: Record<string, string | true>): Promise<vo
 async function cmdModelsUpdate(flags: Record<string, string | true>): Promise<void> {
   const schema = requireFlag(flags, 'schema');
   const apiId = requireFlag(flags, 'model');
+  const force = flags.force === true;
   const supabase = getSupabase(schema);
 
   // Look up model by api_identifier
@@ -498,7 +684,7 @@ async function cmdModelsUpdate(flags: Record<string, string | true>): Promise<vo
   if (optionalFlag(flags, 'name')) updates.name = optionalFlag(flags, 'name');
   if (optionalFlag(flags, 'description')) updates.description = optionalFlag(flags, 'description');
   if (optionalFlag(flags, 'icon')) updates.icon = optionalFlag(flags, 'icon');
-  if (optionalFlag(flags, 'fields')) updates.fields = parseFieldsArg(optionalFlag(flags, 'fields')!);
+  if (optionalFlag(flags, 'fields')) updates.fields = parseFieldsArg(optionalFlag(flags, 'fields')!, force);
 
   const { data, error } = await supabase
     .from('content_models')
@@ -592,10 +778,17 @@ async function cmdEntriesCreate(flags: Record<string, string | true>): Promise<v
   const apiId = requireFlag(flags, 'model');
   const title = requireFlag(flags, 'title');
   const supabase = getSupabase(schema);
-  const modelId = await resolveModelId(supabase, apiId);
+
+  // Fetch full model (need fields for validation)
+  const { data: model, error: modelErr } = await supabase
+    .from('content_models')
+    .select('*')
+    .eq('api_identifier', apiId)
+    .single();
+  if (modelErr) die(`Model "${apiId}" not found: ${modelErr.message}`);
 
   const entry: Record<string, unknown> = {
-    content_model_id: modelId,
+    content_model_id: model.id,
     title,
     status: optionalFlag(flags, 'status') ?? 'draft',
     fields: {},
@@ -604,11 +797,17 @@ async function cmdEntriesCreate(flags: Record<string, string | true>): Promise<v
   const fieldsRaw = optionalFlag(flags, 'fields');
   if (fieldsRaw) {
     entry.fields = parseFieldsArg(fieldsRaw);
-  }
 
-  const seoRaw = optionalFlag(flags, 'seo');
-  if (seoRaw) {
-    entry.seo = parseFieldsArg(seoRaw);
+    // Validate entry fields against model schema
+    const modelFields = (model.fields || []) as Array<Record<string, unknown>>;
+    if (modelFields.length > 0) {
+      const errors = validateEntryFields(entry.fields as Record<string, unknown>, modelFields);
+      if (errors.length > 0) {
+        console.error('Entry validation failed:');
+        for (const e of errors) console.error(`  • ${e}`);
+        process.exit(1);
+      }
+    }
   }
 
   if (entry.status === 'published') {
@@ -633,8 +832,36 @@ async function cmdEntriesUpdate(flags: Record<string, string | true>): Promise<v
   const updates: Record<string, unknown> = { updated_at: new Date().toISOString() };
   if (optionalFlag(flags, 'title')) updates.title = optionalFlag(flags, 'title');
   if (optionalFlag(flags, 'status')) updates.status = optionalFlag(flags, 'status');
-  if (optionalFlag(flags, 'fields')) updates.fields = parseFieldsArg(optionalFlag(flags, 'fields')!);
-  if (optionalFlag(flags, 'seo')) updates.seo = parseFieldsArg(optionalFlag(flags, 'seo')!);
+
+  const fieldsRaw = optionalFlag(flags, 'fields');
+  if (fieldsRaw) {
+    updates.fields = parseFieldsArg(fieldsRaw);
+
+    // Fetch the entry to get its content_model_id, then the model for validation
+    const { data: entry, error: entryErr } = await supabase
+      .from('content_entries')
+      .select('content_model_id')
+      .eq('id', id)
+      .single();
+    if (entryErr) die(`Entry "${id}" not found: ${entryErr.message}`);
+
+    const { data: model, error: modelErr } = await supabase
+      .from('content_models')
+      .select('*')
+      .eq('id', entry.content_model_id)
+      .single();
+    if (modelErr) die(`Could not fetch model for entry: ${modelErr.message}`);
+
+    const modelFields = (model.fields || []) as Array<Record<string, unknown>>;
+    if (modelFields.length > 0) {
+      const errors = validateEntryFields(updates.fields as Record<string, unknown>, modelFields);
+      if (errors.length > 0) {
+        console.error('Entry validation failed:');
+        for (const e of errors) console.error(`  • ${e}`);
+        process.exit(1);
+      }
+    }
+  }
 
   if (updates.status === 'published') {
     updates.published_at = new Date().toISOString();
@@ -906,15 +1133,20 @@ Usage: bullfinch-cms models <subcommand> [flags]
 Subcommands:
   list     --schema <name>
   get      --schema <name> --model <api_id>
-  create   --schema <name> --name <name> --api-id <id> [--description <desc>] [--icon <emoji>] [--fields <json>]
-  update   --schema <name> --model <api_id> [--name <name>] [--description <desc>] [--icon <emoji>] [--fields <json>]
+  create   --schema <name> --name <name> --api-id <id> [--description <desc>] [--icon <emoji>] [--fields <json>] [--force]
+  update   --schema <name> --model <api_id> [--name <name>] [--description <desc>] [--icon <emoji>] [--fields <json>] [--force]
   delete   --schema <name> --model <api_id>
 
 Notes:
   --fields accepts inline JSON or a path to a .json file
+  Field types are validated. The json type is not allowed.
+  Convention checks block long_text (use rich_text/short_text) and short_text
+  fields with url/href in the name (use the url type). Pass --force to override.
+  Array fields must define item_fields in options.
 
 Flags:
   --json    Output in JSON format
+  --force   Bypass soft convention checks (long_text, url-named short_text)
 `.trim();
 
 const HELP_ENTRIES = `
@@ -923,16 +1155,18 @@ Usage: bullfinch-cms entries <subcommand> [flags]
 Subcommands:
   list       --schema <name> --model <api_id> [--status draft|published|archived] [--limit N]
   get        --schema <name> --id <uuid>
-  create     --schema <name> --model <api_id> --title <title> [--fields <json>] [--seo <json>] [--status draft|published]
-  update     --schema <name> --id <uuid> [--title <title>] [--fields <json>] [--seo <json>] [--status <status>]
+  create     --schema <name> --model <api_id> --title <title> [--fields <json>] [--status draft|published]
+  update     --schema <name> --id <uuid> [--title <title>] [--fields <json>] [--status <status>]
   delete     --schema <name> --id <uuid>
   publish    --schema <name> --id <uuid>
   unpublish  --schema <name> --id <uuid>
 
 Notes:
   --fields accepts inline JSON or a path to a .json file
-  --seo accepts inline JSON or a path to a .json file
-    Keys: metaTitle, metaDescription, ogImage, ogTitle, ogDescription, canonicalUrl, noIndex, structuredData
+  Entry fields are validated against the model schema:
+    - Unknown keys are rejected (with fuzzy-match suggestions)
+    - Values are type-checked against the model's field_type definitions
+    - Validation errors prevent the entry from being written
 
 Flags:
   --json    Output in JSON format
