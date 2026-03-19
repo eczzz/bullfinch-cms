@@ -345,7 +345,7 @@ Content models define the structure of your content. Instead of hardcoded "Pages
 | Type | Description | Example Use |
 |------|-------------|-------------|
 | `short_text` | Single-line text input | Titles, names, labels |
-| `long_text` | Multi-line textarea | Descriptions, excerpts |
+| `long_text` | Multi-line textarea (⚠️ prefer `rich_text`) | Legacy — use `rich_text` for body copy |
 | `rich_text` | TipTap WYSIWYG editor | Body content, bios |
 | `number` | Numeric input | Prices, sort order |
 | `boolean` | Toggle switch | Featured flag, visibility |
@@ -360,11 +360,32 @@ Content models define the structure of your content. Instead of hardcoded "Pages
 | `url` | URL input with validation | External links |
 | `email` | Email input with validation | Contact emails |
 | `slug` | URL-friendly identifier | Page slugs |
-| `json` | Raw JSON editor | Structured data, config |
+| ~~`json`~~ | **Removed** — use `array` with `item_fields` | N/A |
 
 ### Creating Models Programmatically
 
-You can create models via the admin UI, or directly via Supabase:
+You can create models via the admin UI, the CLI (recommended), or directly via Supabase:
+
+**Via CLI (recommended):**
+
+```bash
+# Write fields to a JSON file
+cat > /tmp/blog-fields.json << 'EOF'
+[
+  {"name": "Excerpt", "api_identifier": "excerpt", "field_type": "rich_text", "required": true},
+  {"name": "Body", "api_identifier": "body", "field_type": "rich_text", "required": true},
+  {"name": "Featured Image", "api_identifier": "featured_image", "field_type": "media"},
+  {"name": "Published", "api_identifier": "published", "field_type": "boolean"}
+]
+EOF
+
+npx @bullfinch/cms models create --schema cms_acme \
+  --name "Blog Post" --api-id blog_post --fields /tmp/blog-fields.json
+```
+
+The CLI validates field types, enforces conventions, and auto-generates UUIDs for field IDs.
+
+**Via Supabase client (when needed):**
 
 ```ts
 import { createContentModel } from '@bullfinch/cms';
@@ -379,9 +400,8 @@ await createContentModel(supabase, {
       id: crypto.randomUUID(),
       name: 'Excerpt',
       api_identifier: 'excerpt',
-      field_type: 'long_text',
+      field_type: 'rich_text',
       required: true,
-      options: { rows: 3, placeholder: 'Brief summary...' },
     },
     {
       id: crypto.randomUUID(),
@@ -404,7 +424,7 @@ await createContentModel(supabase, {
       default_value: 'false',
     },
   ],
-  created_by: userId, // UUID of the creating user
+  created_by: userId,
 });
 ```
 
@@ -766,6 +786,23 @@ npx @bullfinch/cms users get --schema cms_acme --id <uuid>
 npx @bullfinch/cms users update --schema cms_acme --id <uuid> --role Admin --first-name Jane --last-name Doe
 ```
 
+### `entries test-on` / `test-off` — Test Mode
+
+```bash
+# Enable test mode — snapshots content, replaces with test markers
+npx @bullfinch/cms entries test-on --schema cms_acme --id <entry-uuid>
+
+# Disable test mode — restores original content from snapshot
+npx @bullfinch/cms entries test-off --schema cms_acme --id <entry-uuid>
+```
+
+Test mode replaces entry content with test markers for verifying CMS wiring:
+- Text fields get `111` appended
+- Media fields get replaced with `placehold.co` placeholder images
+- Original content is safely stored in a `_snapshot` column and restored on `test-off`
+
+The admin UI also has a test mode toggle in the entry editor sidebar under "Developer Tools".
+
 ### `init` — Create a new client schema
 
 ```bash
@@ -780,7 +817,7 @@ Creates the Postgres schema, all tables, RLS policies, indexes, triggers, and se
 npx @bullfinch/cms migrate --schema cms_acme
 ```
 
-Applies any pending migrations. Safe to run multiple times (idempotent).
+Applies any pending migrations. Safe to run multiple times (idempotent). The `init` command automatically chains all migrations, so new schemas are always fully configured.
 
 ### `export` — Generate export command for offboarding
 
@@ -792,29 +829,78 @@ Prints the `pg_dump` command to export the client's complete schema and data.
 
 ---
 
+## CLI Validation
+
+The CLI enforces data quality rules to prevent broken CMS configurations.
+
+### Field Type Validation
+
+When creating or updating models, the CLI validates all field types. The `json` type has been removed — use `array` with `item_fields` for structured repeating data.
+
+### Convention Enforcement
+
+The CLI enforces best practices by default:
+
+| Convention | Behavior | Override |
+|-----------|----------|----------|
+| `long_text` field type | Blocked — suggests `rich_text` (formatting toolbar) or `short_text` (single-line) | `--force` |
+| `short_text` on URL-like fields | Blocked — suggests `url` type for fields with `url`/`href` in the name | `--force` |
+| Paired `*_text` + `*_url` fields | Warning — suggests `button` type | N/A (warning only) |
+| `array` without `item_fields` | Hard error — arrays must define their sub-field structure | Cannot override |
+
+### Entry Validation
+
+When creating or updating entries, the CLI cross-references every field against the content model:
+
+- **Unknown keys rejected** — every field key must match an `api_identifier` in the model
+- **Type checking** — values are validated against the field type (strings for text, numbers for numbers, etc.)
+- **Fuzzy matching** — typos get suggestions: `"hro_title" not found — did you mean "hero_title"?`
+- **Recursive validation** — array items are validated against `item_fields`
+- **All-or-nothing** — all errors are collected and reported; no partial writes
+
+---
+
 ## AI Agent Integration
 
 The CLI is designed for programmatic control by AI agents. All commands support `--json` output for reliable parsing, and the command structure maps directly to CRUD operations on CMS resources.
 
-**Agent setup:** See [`skill/SKILL.md`](skill/SKILL.md) for the full AgentSkill reference — field types, workflows, and tips for automated CMS management.
+**Why the CLI matters for agents:** The CLI's strict validation prevents agents from creating broken models or entries. Invalid field types, unknown entry keys, and convention violations are all caught before data touches the database. This eliminates entire categories of agent errors.
 
 **Security note:** The CLI uses the Supabase `service_role` key, which bypasses Row Level Security. This is superuser access — the agent can read and write all data across all schemas. Treat the key accordingly.
 
-**Example: OpenClaw agent creating a client site**
+**Example: Agent workflow for wiring a page to CMS**
 
 ```bash
-# Initialize
-npx @bullfinch/cms init --schema cms_newclient --name "New Client" --json
+# 1. Create a content model with validated field types
+cat > /tmp/fields.json << 'EOF'
+[
+  {"name": "Hero Heading", "api_identifier": "hero_heading", "field_type": "short_text"},
+  {"name": "Hero Description", "api_identifier": "hero_description", "field_type": "rich_text"},
+  {"name": "Hero Image", "api_identifier": "hero_image", "field_type": "media"},
+  {"name": "Hero Button", "api_identifier": "hero_button", "field_type": "button"}
+]
+EOF
+npx @bullfinch/cms models create --schema cms_acme --name "Homepage" --api-id homepage --fields /tmp/fields.json
 
-# Discover what models exist
-npx @bullfinch/cms models list --schema cms_newclient --json
+# 2. Create entry with content (validated against model)
+cat > /tmp/data.json << 'EOF'
+{
+  "hero_heading": "Welcome to Acme",
+  "hero_description": "<p>We do great work.</p>",
+  "hero_image": "https://acme.netlify.app/hero.webp",
+  "hero_button": {"text": "Get Started", "url": "/contact"}
+}
+EOF
+npx @bullfinch/cms entries create --schema cms_acme --model homepage --title "Home" --fields /tmp/data.json --status published
 
-# Create content and publish
-npx @bullfinch/cms entries create --schema cms_newclient \
-  --model homepage --title "Home" \
-  --fields '{"hero_title":"Welcome","hero_body":"We do great work."}' --json
+# 3. Enable test mode for wiring verification
+npx @bullfinch/cms entries test-on --schema cms_acme --id <entry-uuid>
+# → Text gets "111" appended, images become placehold.co URLs
 
-npx @bullfinch/cms entries publish --schema cms_newclient --id <entry-uuid> --json
+# 4. Wire frontend, verify 111 markers in HTML output
+
+# 5. Restore original content
+npx @bullfinch/cms entries test-off --schema cms_acme --id <entry-uuid>
 ```
 
 ---
@@ -874,7 +960,8 @@ npx @bullfinch/cms entries publish --schema cms_newclient --id <entry-uuid> --js
 │   ├── schema/
 │   │   └── migrations/
 │   │       ├── 001_initial.sql             # Base schema (multi-tenant)
-│   │       └── 002_fix_cascade_deletes.sql # Fix FK cascades (SET NULL)
+│   │       ├── 002_fix_cascade_deletes.sql # Fix FK cascades (SET NULL)
+│   │       └── 003_test_mode.sql           # Add test_mode + _snapshot columns
 │   └── cli/
 │       └── index.ts                        # CLI entry point
 ├── package.json
