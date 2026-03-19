@@ -2,11 +2,13 @@ import type { SupabaseClient } from '@supabase/supabase-js';
 import type {
   ContentModel,
   ContentEntry,
+  FieldDefinition,
   MediaItem,
   User,
   EntryStatus,
   SEOData,
 } from './types';
+import { generateTestFields } from './helpers';
 
 // ─── Content Models ─────────────────────────────────────────────────────────
 
@@ -178,6 +180,67 @@ export async function updateEntrySEO(
     .update({ seo, updated_at: new Date().toISOString() })
     .eq('id', id);
   if (error) throw error;
+}
+
+// ─── Test Mode ──────────────────────────────────────────────────────────────
+
+export async function enableTestMode(
+  supabase: SupabaseClient,
+  entryId: string,
+  modelFields: FieldDefinition[]
+): Promise<ContentEntry> {
+  const { data: entry, error: fetchErr } = await supabase
+    .from('content_entries')
+    .select('*')
+    .eq('id', entryId)
+    .single();
+  if (fetchErr) throw fetchErr;
+  if (!entry) throw new Error('Entry not found');
+
+  const currentFields = entry.fields as Record<string, unknown>;
+  const testFields = generateTestFields(currentFields, modelFields);
+
+  const { data, error } = await supabase
+    .from('content_entries')
+    .update({
+      _snapshot: currentFields,
+      fields: testFields,
+      test_mode: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', entryId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
+}
+
+export async function disableTestMode(
+  supabase: SupabaseClient,
+  entryId: string
+): Promise<ContentEntry> {
+  const { data: entry, error: fetchErr } = await supabase
+    .from('content_entries')
+    .select('*')
+    .eq('id', entryId)
+    .single();
+  if (fetchErr) throw fetchErr;
+  if (!entry) throw new Error('Entry not found');
+  if (!entry._snapshot) throw new Error('No snapshot found — cannot restore');
+
+  const { data, error } = await supabase
+    .from('content_entries')
+    .update({
+      fields: entry._snapshot,
+      _snapshot: null,
+      test_mode: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', entryId)
+    .select()
+    .single();
+  if (error) throw error;
+  return data;
 }
 
 // ─── Media ──────────────────────────────────────────────────────────────────

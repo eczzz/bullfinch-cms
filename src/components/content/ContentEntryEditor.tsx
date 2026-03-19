@@ -9,6 +9,8 @@ import {
   updateContentEntry,
   updateEntryStatus,
   updateEntrySEO,
+  enableTestMode,
+  disableTestMode,
 } from '../../core/queries';
 import { getDefaultFieldValues, validateAllFields } from '../../core/helpers';
 import { DynamicField } from './DynamicField';
@@ -47,6 +49,9 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
   const [toast, setToast] = useState<{ type: 'success' | 'error'; title: string; message?: string } | null>(null);
   const [createdAt, setCreatedAt] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<string | null>(null);
+  const [testMode, setTestMode] = useState(false);
+  const [testModeLoading, setTestModeLoading] = useState(false);
+  const [showTestModeConfirm, setShowTestModeConfirm] = useState(false);
 
   const statusRef = useRef<HTMLDivElement>(null);
   const moreRef = useRef<HTMLDivElement>(null);
@@ -87,6 +92,7 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
           setSeo(entry.seo || {});
           setCreatedAt(entry.created_at);
           setUpdatedAt(entry.updated_at);
+          setTestMode(entry.test_mode || false);
         }
       } else if (m) {
         setFields(getDefaultFieldValues(m.fields));
@@ -185,6 +191,43 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
     return new Date(dateStr).toLocaleDateString('en-US', {
       month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit',
     });
+  };
+
+  const handleTestModeToggle = () => {
+    if (testMode) {
+      handleDisableTestMode();
+    } else {
+      setShowTestModeConfirm(true);
+    }
+  };
+
+  const confirmEnableTestMode = async () => {
+    if (!model || !entryId) return;
+    setShowTestModeConfirm(false);
+    setTestModeLoading(true);
+    try {
+      await enableTestMode(supabase, entryId, model.fields);
+      await loadData();
+      setToast({ type: 'success', title: 'Test mode enabled' });
+    } catch (err: any) {
+      setToast({ type: 'error', title: 'Failed to enable test mode', message: err.message });
+    } finally {
+      setTestModeLoading(false);
+    }
+  };
+
+  const handleDisableTestMode = async () => {
+    if (!entryId) return;
+    setTestModeLoading(true);
+    try {
+      await disableTestMode(supabase, entryId);
+      await loadData();
+      setToast({ type: 'success', title: 'Original content restored' });
+    } catch (err: any) {
+      setToast({ type: 'error', title: 'Failed to restore content', message: err.message });
+    } finally {
+      setTestModeLoading(false);
+    }
   };
 
   if (loading) {
@@ -355,6 +398,27 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
         </div>
       </div>
 
+      {/* Test Mode Banner */}
+      {testMode && (
+        <div className="bg-amber-50 border-b border-amber-200 px-6 py-2.5">
+          <div className="max-w-7xl mx-auto flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="text-lg">🧪</span>
+              <span className="text-sm font-medium text-amber-800">
+                Test Mode Active — Content has been replaced with test markers
+              </span>
+            </div>
+            <button
+              onClick={handleDisableTestMode}
+              disabled={testModeLoading}
+              className="text-sm font-medium text-amber-700 hover:text-amber-900 bg-amber-100 hover:bg-amber-200 px-3 py-1 rounded-md transition-all"
+            >
+              {testModeLoading ? 'Restoring…' : 'Restore Original Content'}
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Two Column Layout */}
       <div className="max-w-7xl mx-auto px-6 py-8">
         <div className="grid grid-cols-3 gap-8">
@@ -440,6 +504,36 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
               </div>
             </div>
 
+            {/* Developer Tools — Test Mode */}
+            {entryId && (
+              <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
+                <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Developer Tools</h3>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">🧪</span>
+                    <span className="text-sm text-gray-700 font-medium">Test Mode</span>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={testMode}
+                    disabled={testModeLoading}
+                    onClick={handleTestModeToggle}
+                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                      testMode ? 'bg-amber-500' : 'bg-gray-200'
+                    } ${testModeLoading ? 'opacity-50' : ''}`}
+                  >
+                    <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow-sm transition-transform ${
+                      testMode ? 'translate-x-6' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+                {testMode && (
+                  <p className="text-xs text-amber-600 mt-2">Original content saved. Toggle off to restore.</p>
+                )}
+              </div>
+            )}
+
             {/* Metadata Card */}
             {entryId && (
               <div className="bg-white rounded-xl shadow-sm ring-1 ring-gray-200 p-5">
@@ -483,6 +577,35 @@ export function ContentEntryEditor({ modelId, entryId }: ContentEntryEditorProps
       )}
 
       {toast && <Toast {...toast} onClose={() => setToast(null)} />}
+
+      {/* Test Mode Confirmation Modal */}
+      {showTestModeConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center">
+          <div className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm" onClick={() => setShowTestModeConfirm(false)} />
+          <div className="relative bg-white rounded-xl shadow-lg w-full max-w-md border border-gray-200 p-6">
+            <div className="text-center space-y-4">
+              <div className="w-12 h-12 rounded-full bg-amber-50 flex items-center justify-center mx-auto">
+                <span className="text-2xl">🧪</span>
+              </div>
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900">Enable Test Mode?</h3>
+                <p className="text-sm text-gray-500 mt-2">
+                  This will temporarily replace all content with test markers (111 text, placeholder images).
+                  Your original content is safely saved and will be restored when you turn test mode off.
+                </p>
+              </div>
+              <div className="flex gap-2 pt-2">
+                <button onClick={() => setShowTestModeConfirm(false)} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg text-gray-600 hover:bg-gray-100 transition-all">
+                  Cancel
+                </button>
+                <button onClick={confirmEnableTestMode} className="flex-1 px-4 py-2.5 text-sm font-medium rounded-lg bg-amber-500 text-white hover:bg-amber-600 shadow-sm transition-all">
+                  Enable Test Mode
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Build Production Modal */}
       {showBuildModal && (

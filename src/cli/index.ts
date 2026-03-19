@@ -132,16 +132,21 @@ function getSupabase(schema?: string): SupabaseClient {
 }
 
 function loadMigration(): string {
+  return loadMigrationFile('001_initial');
+}
+
+function loadMigrationFile(name: string): string {
+  const filename = `${name}.sql`;
   const paths = [
-    resolve(__dirname, '../schema/migrations/001_initial.sql'),
-    resolve(__dirname, '../../src/schema/migrations/001_initial.sql'),
+    resolve(__dirname, '../schema/migrations', filename),
+    resolve(__dirname, '../../src/schema/migrations', filename),
   ];
   for (const p of paths) {
     try {
       return readFileSync(p, 'utf-8');
     } catch { /* try next */ }
   }
-  die('Could not find migration SQL file');
+  die(`Could not find migration file: ${filename}`);
 }
 
 // Valid field types from DynamicField.tsx
@@ -449,10 +454,14 @@ async function cmdInit(flags: Record<string, string | true>): Promise<void> {
     console.warn(`Warning: Could not seed business name: ${seedError.message}`);
   }
 
+  // Run all subsequent migrations so new schemas are fully configured
+  console.log('Running subsequent migrations...');
+  await cmdMigrate({ ...flags, schema });
+
   if (isJson(flags)) {
     output({ status: 'ok', schema, name }, flags);
   } else {
-    console.log(`Schema "${schema}" initialized successfully.`);
+    console.log(`\nSchema "${schema}" initialized successfully (all migrations applied).`);
     console.log(`\nNext steps:`);
     console.log(`  1. Create a Supabase client with: { db: { schema: '${schema}' } }`);
     console.log(`  2. Create an admin user in Supabase Auth`);
@@ -465,16 +474,43 @@ async function cmdMigrate(flags: Record<string, string | true>): Promise<void> {
   console.log(`Running migrations for schema "${schema}"...`);
   const supabase = getSupabase();
 
-  let sql = loadMigration();
-  sql = sql.replace(/SCHEMA_NAME/g, schema);
+  const migrationFiles = ['001_initial', '002_fix_cascade_deletes', '003_test_mode'];
 
-  const { error } = await supabase.rpc('exec_sql', { query: sql });
-  if (error) die(`Migration failed: ${error.message}`);
+  // Check which migrations have already been applied
+  const { data: applied } = await supabase.rpc('exec_sql_read', {
+    query: `SELECT name FROM ${schema}._migrations`,
+  });
+  const appliedSet = new Set<string>();
+  if (Array.isArray(applied)) {
+    for (const row of applied) {
+      appliedSet.add(typeof row === 'string' ? row : (row as Record<string, unknown>).name as string);
+    }
+  }
+
+  let ranCount = 0;
+  for (const name of migrationFiles) {
+    if (appliedSet.has(name)) {
+      console.log(`  ⊘ ${name} (already applied)`);
+      continue;
+    }
+
+    let sql = loadMigrationFile(name);
+    sql = sql.replace(/SCHEMA_NAME/g, schema);
+
+    const { error } = await supabase.rpc('exec_sql', { query: sql });
+    if (error) die(`Migration ${name} failed: ${error.message}`);
+    console.log(`  ✓ ${name}`);
+    ranCount++;
+  }
 
   if (isJson(flags)) {
-    output({ status: 'ok', schema }, flags);
+    output({ status: 'ok', schema, migrations_run: ranCount }, flags);
   } else {
-    console.log(`Migrations complete for "${schema}".`);
+    if (ranCount === 0) {
+      console.log(`All migrations already applied for "${schema}".`);
+    } else {
+      console.log(`${ranCount} migration(s) complete for "${schema}".`);
+    }
   }
 }
 
@@ -936,6 +972,93 @@ async function cmdEntriesUnpublish(flags: Record<string, string | true>): Promis
   output(data, flags);
 }
 
+async function cmdEntriesTestOn(flags: Record<string, string | true>): Promise<void> {
+  const schema = requireFlag(flags, 'schema');
+  const id = requireFlag(flags, 'id');
+  const supabase = getSupabase(schema);
+
+  // Fetch entry
+  const { data: entry, error: entryErr } = await supabase
+    .from('content_entries')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (entryErr) die(`Entry not found: ${entryErr.message}`);
+  if (entry.test_mode) die('Entry is already in test mode');
+
+  // Fetch model for field definitions
+  const { data: model, error: modelErr } = await supabase
+    .from('content_models')
+    .select('*')
+    .eq('id', entry.content_model_id)
+    .single();
+  if (modelErr) die(`Could not fetch model: ${modelErr.message}`);
+
+  const modelFields = (model.fields || []) as Array<Record<string, unknown>>;
+  const currentFields = (entry.fields || {}) as Record<string, unknown>;
+
+  // Import generateTestFields logic
+  const { generateTestFields } = await import('../core/helpers.js');
+  const testFields = generateTestFields(currentFields, modelFields as any);
+
+  // Count modified fields
+  const modifiedCount = Object.keys(testFields).filter(
+    (k) => JSON.stringify(testFields[k]) !== JSON.stringify(currentFields[k])
+  ).length;
+
+  // Update entry
+  const { error: updateErr } = await supabase
+    .from('content_entries')
+    .update({
+      _snapshot: currentFields,
+      fields: testFields,
+      test_mode: true,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+  if (updateErr) die(`Failed to enable test mode: ${updateErr.message}`);
+
+  if (isJson(flags)) {
+    output({ status: 'ok', id, test_mode: true, modified_fields: modifiedCount }, flags);
+  } else {
+    console.log(`✓ Test mode enabled for entry "${entry.title}" (${modifiedCount} fields modified)`);
+  }
+}
+
+async function cmdEntriesTestOff(flags: Record<string, string | true>): Promise<void> {
+  const schema = requireFlag(flags, 'schema');
+  const id = requireFlag(flags, 'id');
+  const supabase = getSupabase(schema);
+
+  // Fetch entry
+  const { data: entry, error: entryErr } = await supabase
+    .from('content_entries')
+    .select('*')
+    .eq('id', id)
+    .single();
+  if (entryErr) die(`Entry not found: ${entryErr.message}`);
+  if (!entry.test_mode) die('Entry is not in test mode');
+  if (!entry._snapshot) die('No snapshot found — cannot restore (data loss protection)');
+
+  // Restore
+  const { error: updateErr } = await supabase
+    .from('content_entries')
+    .update({
+      fields: entry._snapshot,
+      _snapshot: null,
+      test_mode: false,
+      updated_at: new Date().toISOString(),
+    })
+    .eq('id', id);
+  if (updateErr) die(`Failed to disable test mode: ${updateErr.message}`);
+
+  if (isJson(flags)) {
+    output({ status: 'ok', id, test_mode: false }, flags);
+  } else {
+    console.log(`✓ Test mode disabled for entry "${entry.title}" — original content restored`);
+  }
+}
+
 // ─── Media ──────────────────────────────────────────────────────────────────
 
 async function cmdMediaList(flags: Record<string, string | true>): Promise<void> {
@@ -1160,6 +1283,8 @@ Subcommands:
   delete     --schema <name> --id <uuid>
   publish    --schema <name> --id <uuid>
   unpublish  --schema <name> --id <uuid>
+  test-on    --schema <name> --id <uuid>    Enable test mode (replace fields with test markers)
+  test-off   --schema <name> --id <uuid>    Disable test mode (restore original content)
 
 Notes:
   --fields accepts inline JSON or a path to a .json file
@@ -1167,6 +1292,10 @@ Notes:
     - Unknown keys are rejected (with fuzzy-match suggestions)
     - Values are type-checked against the model's field_type definitions
     - Validation errors prevent the entry from being written
+
+  Test mode replaces field content with test markers (111 text, placeholder images)
+  to verify CMS wiring on the frontend. Original content is saved and restored
+  when test mode is turned off.
 
 Flags:
   --json    Output in JSON format
@@ -1310,6 +1439,8 @@ async function main(): Promise<void> {
         if (subcommand === 'delete') return await cmdEntriesDelete(flags);
         if (subcommand === 'publish') return await cmdEntriesPublish(flags);
         if (subcommand === 'unpublish') return await cmdEntriesUnpublish(flags);
+        if (subcommand === 'test-on') return await cmdEntriesTestOn(flags);
+        if (subcommand === 'test-off') return await cmdEntriesTestOff(flags);
         die(`Unknown subcommand: entries ${subcommand}. Run "bullfinch-cms entries --help"`);
         break;
 

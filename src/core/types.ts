@@ -82,6 +82,8 @@ export interface ContentEntry {
   status: EntryStatus;
   seo?: SEOData | null;
   published_at: string | null;
+  test_mode?: boolean;
+  _snapshot?: Record<string, unknown> | null;
   created_by: string;
   created_at: string;
   updated_at: string;

@@ -166,6 +166,72 @@ export function formatDateTime(dateString: string): string {
   });
 }
 
+// ─── Test Mode ──────────────────────────────────────────────────────────────
+
+export function generateTestFields(
+  currentFields: Record<string, unknown>,
+  fieldDefinitions: FieldDefinition[]
+): Record<string, unknown> {
+  const result: Record<string, unknown> = { ...currentFields };
+
+  for (const field of fieldDefinitions) {
+    const key = field.api_identifier;
+    const value = currentFields[key];
+
+    switch (field.field_type) {
+      case 'short_text':
+      case 'slug':
+        result[key] = value && typeof value === 'string' ? `${value} 111` : 'test 111';
+        break;
+
+      case 'rich_text':
+        result[key] = value && typeof value === 'string' ? `${value}<p>111</p>` : '<p>test 111</p>';
+        break;
+
+      case 'email':
+        result[key] = 'test111@example.com';
+        break;
+
+      case 'url':
+        // Leave unchanged — breaking URLs doesn't help
+        break;
+
+      case 'media':
+        result[key] = `https://placehold.co/800x600/e2e8f0/64748b?text=${encodeURIComponent(field.name)}`;
+        break;
+
+      case 'button': {
+        const btn = (value && typeof value === 'object' && !Array.isArray(value))
+          ? value as Record<string, unknown>
+          : { text: '', url: '' };
+        result[key] = {
+          text: (btn.text && typeof btn.text === 'string' ? btn.text : '') + ' 111',
+          url: btn.url || '',
+        };
+        break;
+      }
+
+      case 'array': {
+        if (Array.isArray(value) && field.options?.item_fields && field.options.item_fields.length > 0) {
+          result[key] = value.map((item) => {
+            if (typeof item === 'object' && item !== null && !Array.isArray(item)) {
+              return generateTestFields(item as Record<string, unknown>, field.options!.item_fields!);
+            }
+            return item;
+          });
+        }
+        break;
+      }
+
+      // number, boolean, date, datetime, color, select, reference, long_text, json — leave unchanged
+      default:
+        break;
+    }
+  }
+
+  return result;
+}
+
 // ─── Misc ───────────────────────────────────────────────────────────────────
 
 export function classNames(...classes: (string | boolean | undefined | null)[]): string {
