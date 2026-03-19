@@ -144,24 +144,88 @@ function loadMigration(): string {
   die('Could not find migration SQL file');
 }
 
+// Valid field types from DynamicField.tsx
+const VALID_FIELD_TYPES = new Set([
+  'short_text', 'long_text', 'rich_text', 'number', 'boolean',
+  'date', 'datetime', 'color', 'select', 'media', 'reference',
+  'button', 'array', 'json', 'url', 'email', 'slug',
+]);
+
+/** Normalize and validate a field definition to match FieldDefinition interface */
+function normalizeField(field: Record<string, unknown>, index: number): Record<string, unknown> {
+  const normalized: Record<string, unknown> = { ...field };
+
+  // Normalize api_id/key → api_identifier
+  if (!normalized.api_identifier && normalized.api_id) {
+    normalized.api_identifier = normalized.api_id;
+    delete normalized.api_id;
+  }
+  if (!normalized.api_identifier && normalized.key) {
+    normalized.api_identifier = normalized.key;
+    delete normalized.key;
+  }
+  if (!normalized.api_identifier) {
+    die(`Field ${index + 1} ("${normalized.name || '?'}") missing api_identifier (or api_id/key)`);
+  }
+
+  // Normalize type → field_type
+  if (!normalized.field_type && normalized.type) {
+    normalized.field_type = normalized.type;
+    delete normalized.type;
+  }
+  if (!normalized.field_type) {
+    die(`Field "${normalized.api_identifier}" missing field_type`);
+  }
+  if (!VALID_FIELD_TYPES.has(normalized.field_type as string)) {
+    die(`Field "${normalized.api_identifier}" has invalid field_type "${normalized.field_type}". Valid types: ${[...VALID_FIELD_TYPES].join(', ')}`);
+  }
+
+  // Recursively normalize item_fields in arrays
+  if (normalized.field_type === 'array' && normalized.options) {
+    const opts = normalized.options as Record<string, unknown>;
+    if (Array.isArray(opts.item_fields)) {
+      opts.item_fields = (opts.item_fields as Record<string, unknown>[]).map((sf, si) => normalizeField(sf, si));
+    }
+  }
+
+  return normalized;
+}
+
+/** Normalize an array of field definitions */
+function normalizeFields(fields: unknown): unknown {
+  if (!Array.isArray(fields)) return fields;
+  return fields.map((f, i) => normalizeField(f as Record<string, unknown>, i));
+}
+
 /** Parse --fields value: inline JSON or file path */
 function parseFieldsArg(val: string): unknown {
   const trimmed = val.trim();
+  let parsed: unknown;
   if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
     try {
-      return JSON.parse(trimmed);
+      parsed = JSON.parse(trimmed);
     } catch (e) {
       die(`Invalid inline JSON for --fields: ${(e as Error).message}`);
     }
+  } else {
+    // Treat as file path
+    const fullPath = resolve(process.cwd(), trimmed);
+    if (!existsSync(fullPath)) die(`Fields file not found: ${fullPath}`);
+    try {
+      parsed = JSON.parse(readFileSync(fullPath, 'utf-8'));
+    } catch (e) {
+      die(`Invalid JSON in fields file ${fullPath}: ${(e as Error).message}`);
+    }
   }
-  // Treat as file path
-  const fullPath = resolve(process.cwd(), trimmed);
-  if (!existsSync(fullPath)) die(`Fields file not found: ${fullPath}`);
-  try {
-    return JSON.parse(readFileSync(fullPath, 'utf-8'));
-  } catch (e) {
-    die(`Invalid JSON in fields file ${fullPath}: ${(e as Error).message}`);
+  // Normalize field definitions if this looks like a fields array (for models)
+  if (Array.isArray(parsed) && parsed.length > 0 && typeof parsed[0] === 'object' && parsed[0] !== null) {
+    const first = parsed[0] as Record<string, unknown>;
+    // If it has field-definition-like keys, normalize
+    if (first.field_type || first.type || first.api_identifier || first.api_id || first.key) {
+      return normalizeFields(parsed);
+    }
   }
+  return parsed;
 }
 
 // ─── Existing Commands (init / migrate / export) ────────────────────────────
