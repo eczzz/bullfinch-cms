@@ -188,6 +188,10 @@ export function generateTestFields(
         result[key] = value && typeof value === 'string' ? `${value}<p>111</p>` : '<p>test 111</p>';
         break;
 
+      case 'long_text':
+        result[key] = value && typeof value === 'string' ? `${value} 111` : 'test 111';
+        break;
+
       case 'email':
         result[key] = 'test111@example.com';
         break;
@@ -223,7 +227,7 @@ export function generateTestFields(
         break;
       }
 
-      // number, boolean, date, datetime, color, select, reference, long_text, json — leave unchanged
+      // number, boolean, date, datetime, color, select, reference, json — leave unchanged
       default:
         break;
     }

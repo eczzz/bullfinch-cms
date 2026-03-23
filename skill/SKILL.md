@@ -98,6 +98,7 @@ npx tsx src/cli/index.ts entries test-off --schema cms_<client> --id <entry-uuid
 
 ### What Test Mode Does
 - `short_text`, `slug`: appends ` 111` to value
+- `long_text`: appends ` 111` to value
 - `rich_text`: appends `<p>111</p>` to value
 - `email`: replaces with `test111@example.com`
 - `url`: left unchanged (breaking URLs doesn't help)
