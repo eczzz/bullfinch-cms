@@ -166,8 +166,6 @@ export interface StorageAdapter {
 // ─── CMS Config ─────────────────────────────────────────────────────────────
 
 export interface CMSConfig {
-  /** DB schema for this CMS instance (e.g. 'cms_basecamp'). Defaults to 'public'. */
-  schema?: string;
   branding?: Partial<BrandingConfig>;
   storage?: StorageAdapter;
   customFieldTypes?: Record<string, CustomFieldType>;
