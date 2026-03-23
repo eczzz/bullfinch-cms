@@ -1226,6 +1226,7 @@ Commands:
   settings   Manage CMS settings
   users      Manage CMS users
   init       Initialize a new schema
+  scaffold   Scaffold a new CMS client app
   migrate    Run migrations on a schema
   export     Export schema data (pg_dump helper)
 
@@ -1347,6 +1348,19 @@ Flags:
   --json             Output in JSON format
 `.trim();
 
+const HELP_SCAFFOLD = `
+Usage: bullfinch-cms scaffold --name <display_name> --schema <schema> --dir <output_dir>
+
+Scaffold a new CMS client app (Vite + React + TypeScript + Tailwind).
+
+Flags:
+  --name <name>       Business display name (e.g., "Base Camp Ouray")
+  --schema <schema>   CMS schema name (e.g., cms_basecamp)
+  --dir <path>        Output directory (e.g., ./basecamp-cms)
+  --primary <color>   Primary brand color (default: #2563eb)
+  --accent <color>    Accent brand color (optional)
+`.trim();
+
 const HELP_MIGRATE = `
 Usage: bullfinch-cms migrate --schema <name>
 
@@ -1368,6 +1382,181 @@ Flags:
   --json               Output in JSON format
 `.trim();
 
+// ─── Scaffold Command ───────────────────────────────────────────────────────
+
+async function cmdScaffold(flags: Record<string, string | true>): Promise<void> {
+  const { mkdirSync, writeFileSync } = await import('fs');
+  const { join } = await import('path');
+
+  const name = requireFlag(flags, 'name');
+  const schema = requireFlag(flags, 'schema');
+  const dir = requireFlag(flags, 'dir');
+  const primaryColor = typeof flags.primary === 'string' ? flags.primary : '#2563eb';
+  const accentColor = typeof flags.accent === 'string' ? flags.accent : '';
+
+  const safeName = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+  // Create directory structure
+  mkdirSync(join(dir, 'src'), { recursive: true });
+  mkdirSync(join(dir, 'public'), { recursive: true });
+
+  // package.json
+  writeFileSync(join(dir, 'package.json'), JSON.stringify({
+    name: `${safeName}-cms`,
+    private: true,
+    version: '1.0.0',
+    type: 'module',
+    scripts: {
+      dev: 'vite',
+      'dev-host': 'vite --host',
+      build: 'tsc && vite build',
+      preview: 'vite preview',
+    },
+    dependencies: {
+      '@bullfinch/cms': 'github:eczzz/bullfinch-cms',
+      '@supabase/supabase-js': '^2.99.2',
+      '@tailwindcss/vite': '^4.2.1',
+      '@types/react': '^19.2.14',
+      '@types/react-dom': '^19.2.3',
+      '@vitejs/plugin-react': '^4.7.0',
+      react: '^19.2.4',
+      'react-dom': '^19.2.4',
+      tailwindcss: '^4.2.1',
+      typescript: '^5.9.3',
+      vite: '^6.4.1',
+    },
+  }, null, 2) + '\n');
+
+  // vite.config.ts
+  writeFileSync(join(dir, 'vite.config.ts'), `import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import tailwindcss from '@tailwindcss/vite';
+
+export default defineConfig({
+  plugins: [react(), tailwindcss()],
+  resolve: {
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime'],
+  },
+});
+`);
+
+  // tsconfig.json
+  writeFileSync(join(dir, 'tsconfig.json'), JSON.stringify({
+    compilerOptions: {
+      target: 'ES2020',
+      useDefineForClassFields: true,
+      lib: ['ES2020', 'DOM', 'DOM.Iterable'],
+      module: 'ESNext',
+      skipLibCheck: true,
+      moduleResolution: 'bundler',
+      allowImportingTsExtensions: true,
+      isolatedModules: true,
+      moduleDetection: 'force',
+      noEmit: true,
+      jsx: 'react-jsx',
+      strict: true,
+      noUnusedLocals: true,
+      noUnusedParameters: true,
+      noFallthroughCasesInSwitch: true,
+    },
+    include: ['src'],
+  }, null, 2) + '\n');
+
+  // index.html
+  writeFileSync(join(dir, 'index.html'), `<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>${name} CMS</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+`);
+
+  // .env.example
+  writeFileSync(join(dir, '.env.example'), `VITE_SUPABASE_URL=https://your-project.supabase.co
+VITE_SUPABASE_ANON_KEY=your-anon-key
+`);
+
+  // .gitignore
+  writeFileSync(join(dir, '.gitignore'), `node_modules
+dist
+.env
+.env.local
+`);
+
+  // public/_redirects (Netlify SPA)
+  writeFileSync(join(dir, 'public', '_redirects'), `/*    /index.html   200
+`);
+
+  // src/index.css
+  writeFileSync(join(dir, 'src', 'index.css'), `@source "../node_modules/@bullfinch/cms/dist/**/*.{js,ts,jsx,tsx}";
+@import "tailwindcss";
+`);
+
+  // src/main.tsx
+  writeFileSync(join(dir, 'src', 'main.tsx'), `import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import App from './App';
+import './index.css';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
+`);
+
+  // src/App.tsx
+  const brandingLines = [`          businessName: '${name.replace(/'/g, "\\'")}',`];
+  brandingLines.push(`          primaryColor: '${primaryColor}',`);
+  if (accentColor) brandingLines.push(`          accentColor: '${accentColor}',`);
+
+  writeFileSync(join(dir, 'src', 'App.tsx'), `import { createClient, type SupabaseClient } from '@supabase/supabase-js';
+import { CMSProvider, AdminPanel } from '@bullfinch/cms';
+
+const supabase = createClient(
+  import.meta.env.VITE_SUPABASE_URL,
+  import.meta.env.VITE_SUPABASE_ANON_KEY,
+  { db: { schema: '${schema}' } }
+) as unknown as SupabaseClient;
+
+export default function App() {
+  return (
+    <CMSProvider
+      supabase={supabase}
+      config={{
+        branding: {
+${brandingLines.join('\n')}
+        },
+      }}
+    >
+      <AdminPanel />
+    </CMSProvider>
+  );
+}
+`);
+
+  // src/vite-env.d.ts
+  writeFileSync(join(dir, 'src', 'vite-env.d.ts'), `/// <reference types="vite/client" />
+`);
+
+  console.log(`\n✅ Scaffolded "${name}" CMS app in ${dir}/`);
+  console.log(`\nNext steps:`);
+  console.log(`  1. cd ${dir}`);
+  console.log(`  2. cp .env.example .env  (fill in your Supabase credentials)`);
+  console.log(`  3. npm install`);
+  console.log(`  4. npm run dev`);
+  console.log(`\nFor Netlify deployment:`);
+  console.log(`  - Build command: npm run build`);
+  console.log(`  - Publish directory: dist`);
+  console.log(`  - SPA redirects are pre-configured in public/_redirects`);
+}
+
 // ─── Router ─────────────────────────────────────────────────────────────────
 
 const HELP_MAP: Record<string, string> = {
@@ -1378,6 +1567,7 @@ const HELP_MAP: Record<string, string> = {
   settings: HELP_SETTINGS,
   users: HELP_USERS,
   init: HELP_INIT,
+  scaffold: HELP_SCAFFOLD,
   migrate: HELP_MIGRATE,
   export: HELP_EXPORT,
 };
@@ -1470,6 +1660,9 @@ async function main(): Promise<void> {
       // ── Legacy Commands ──
       case 'init':
         return await cmdInit(flags);
+
+      case 'scaffold':
+        return await cmdScaffold(flags);
 
       case 'migrate':
         return await cmdMigrate(flags);
