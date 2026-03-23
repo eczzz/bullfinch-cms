@@ -1,3 +1,4 @@
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { StorageAdapter } from './types';
 
 /**
@@ -61,4 +62,72 @@ export function createPresignedUrlStorageAdapter(config: {
     },
     getPresignedUrl: config.getPresignedUrl,
   };
+}
+
+/**
+ * Creates an R2 storage adapter that uses a Supabase Edge Function for presigning.
+ * Automatically used when R2 settings are detected in the settings table.
+ *
+ * @param supabase - Supabase client (used to get the current session token)
+ * @param supabaseUrl - The Supabase project URL (e.g. https://xyz.supabase.co)
+ * @param schema - The DB schema the CMS instance uses (default: 'public')
+ */
+export function createR2StorageAdapter(
+  supabase: SupabaseClient,
+  supabaseUrl: string,
+  schema?: string
+): StorageAdapter {
+  return {
+    async upload(file: File) {
+      // Get the current auth session for the edge function call
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('Not authenticated');
+
+      const response = await fetch(`${supabaseUrl}/functions/v1/r2-presign`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${session.access_token}`,
+        },
+        body: JSON.stringify({
+          filename: file.name,
+          contentType: file.type,
+          schema: schema || 'public',
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json().catch(() => ({}));
+        throw new Error((err as any).error || `Presign failed: ${response.status}`);
+      }
+
+      const { presignedUrl, publicUrl, filename } = await response.json();
+
+      // Upload directly to R2 via the presigned URL
+      const uploadRes = await fetch(presignedUrl, {
+        method: 'PUT',
+        body: file,
+        headers: { 'Content-Type': file.type },
+      });
+
+      if (!uploadRes.ok) {
+        throw new Error(`R2 upload failed: ${uploadRes.status}`);
+      }
+
+      return { url: publicUrl, filename };
+    },
+  };
+}
+
+/**
+ * Checks if R2 integration settings are present in a settings map.
+ */
+export function hasR2Settings(settings: Record<string, string>): boolean {
+  return !!(
+    settings['integration_r2_account_id'] &&
+    settings['integration_r2_access_key_id'] &&
+    settings['integration_r2_secret_access_key'] &&
+    settings['integration_r2_bucket_name'] &&
+    settings['integration_r2_public_url']
+  );
 }
