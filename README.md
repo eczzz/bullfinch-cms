@@ -300,17 +300,41 @@ import { createPresignedUrlStorageAdapter } from '@bullfinch/cms';
 
 ## Adding More Clients
 
-It's the same two steps every time:
+It's the same steps every time:
 
 ```bash
 # 1. Create their schema
 npx @bullfinch/cms init --schema cms_newclient --name "New Client Inc"
 
-# 2. Create their admin user (via Dashboard or script)
+# 2. Scaffold their CMS app
+npx @bullfinch/cms scaffold --name "New Client Inc" --schema cms_newclient --dir ./newclient-cms
+
+# 3. Configure and deploy
+cd newclient-cms
+cp .env.example .env   # Fill in Supabase credentials
+npm install
+npm run dev
+
+# 4. Create their admin user (via Dashboard or script)
 ```
 
-Then either:
-- **Separate app per client:** Clone your template app, change the `.env` to point at the new schema
+The `scaffold` command generates a complete, deploy-ready CMS app with all common issues pre-solved:
+- Tailwind `@source` directive for CMS component classes
+- `resolve.dedupe` in Vite config to prevent dual React
+- Netlify `_redirects` for SPA routing
+- Branding config with business name and colors
+
+**Options:**
+```bash
+npx @bullfinch/cms scaffold \
+  --name "New Client Inc" \
+  --schema cms_newclient \
+  --dir ./newclient-cms \
+  --primary "#224059" \
+  --accent "#FFC844"
+```
+
+Alternatively:
 - **Single app, dynamic schema:** Use a subdomain or URL param to select the schema at runtime
 
 ### Dynamic Schema Example
@@ -802,6 +826,28 @@ Test mode replaces entry content with test markers for verifying CMS wiring:
 - Original content is safely stored in a `_snapshot` column and restored on `test-off`
 
 The admin UI also has a test mode toggle in the entry editor sidebar under "Developer Tools".
+
+### `scaffold` — Generate a new CMS client app
+
+```bash
+npx @bullfinch/cms scaffold --name "Acme Corp" --schema cms_acme --dir ./acme-cms
+npx @bullfinch/cms scaffold --name "Acme Corp" --schema cms_acme --dir ./acme-cms --primary "#224059" --accent "#FFC844"
+```
+
+Generates a complete Vite + React + TypeScript + Tailwind CMS app, ready for `npm install && npm run dev`. Includes:
+- `@source` directive for CMS Tailwind classes (no missing styles)
+- `resolve.dedupe` in Vite config (no dual React issues)
+- Netlify `_redirects` for SPA routing (no 404s on refresh)
+- `.env.example` with Supabase placeholder credentials
+- Branding config with business name and optional colors
+
+| Flag | Required | Description |
+|------|----------|-------------|
+| `--name` | ✅ | Business display name |
+| `--schema` | ✅ | CMS schema name (e.g., `cms_acme`) |
+| `--dir` | ✅ | Output directory path |
+| `--primary` | ❌ | Primary brand color (default: `#2563eb`) |
+| `--accent` | ❌ | Accent brand color |
 
 ### `init` — Create a new client schema
 

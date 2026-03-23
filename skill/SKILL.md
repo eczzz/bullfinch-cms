@@ -125,11 +125,19 @@ npx tsx src/cli/index.ts entries test-off --schema cms_<client> --id <entry-uuid
 3. **Init schema:** `npx tsx src/cli/index.ts init --schema cms_<client> --name "<Client Name>"`
    - Init automatically runs ALL migrations — new schemas are fully configured
    - If `exec_sql` function missing, create it first (see README)
-4. **Create client CMS app** (Vite + React + TS + Tailwind):
-   - Install `@bullfinch/cms` from GitHub
-   - Peer deps: `react react-dom @supabase/supabase-js`
-   - **Fix dual React:** Add `resolve.dedupe: ['react', 'react-dom', 'react/jsx-runtime']` to vite config
-   - **Fix Tailwind source:** `@source "../node_modules/@bullfinch/cms/dist/**/*.{js,ts,jsx,tsx}"` (relative to CSS file)
+4. **Scaffold client CMS app:**
+   ```bash
+   npx tsx src/cli/index.ts scaffold --name "<Client Name>" --schema cms_<client> --dir ./<client>-cms --primary "#224059" --accent "#FFC844"
+   cd <client>-cms
+   cp .env.example .env   # Fill in Supabase credentials
+   npm install
+   npm run dev
+   ```
+   - The scaffold command generates a complete deploy-ready app with all common issues pre-solved:
+     - Tailwind `@source` for CMS component classes (no missing styles)
+     - `resolve.dedupe` in Vite config (no dual React)
+     - Netlify `_redirects` for SPA routing (no 404s on refresh)
+     - Branding config with business name and colors
 5. **Add RLS policies** for public frontend reads:
    ```sql
    CREATE POLICY <name>_public_select ON cms_<schema>.content_models FOR SELECT TO anon USING (true);
