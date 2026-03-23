@@ -1409,11 +1409,12 @@ async function cmdScaffold(flags: Record<string, string | true>): Promise<void> 
     scripts: {
       dev: 'vite',
       'dev-host': 'vite --host',
+      prebuild: 'npm update @bullfinch/cms',
       build: 'tsc && vite build',
       preview: 'vite preview',
     },
     dependencies: {
-      '@bullfinch/cms': 'github:eczzz/bullfinch-cms',
+      '@bullfinch/cms': 'github:eczzz/bullfinch-cms#main',
       '@supabase/supabase-js': '^2.99.2',
       '@tailwindcss/vite': '^4.2.1',
       '@types/react': '^19.2.14',
