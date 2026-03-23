@@ -74,34 +74,25 @@ export function createPresignedUrlStorageAdapter(config: {
  */
 export function createR2StorageAdapter(
   supabase: SupabaseClient,
-  supabaseUrl: string,
   schema?: string
 ): StorageAdapter {
   return {
     async upload(file: File) {
-      // Get the current auth session for the edge function call
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) throw new Error('Not authenticated');
-
-      const response = await fetch(`${supabaseUrl}/functions/v1/r2-presign`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
-        },
-        body: JSON.stringify({
+      // Use the Supabase client's functions.invoke() which handles
+      // auth headers (Authorization + apikey) automatically
+      const { data, error } = await supabase.functions.invoke('r2-presign', {
+        body: {
           filename: file.name,
           contentType: file.type,
           schema: schema || 'public',
-        }),
+        },
       });
 
-      if (!response.ok) {
-        const err = await response.json().catch(() => ({}));
-        throw new Error((err as any).error || `Presign failed: ${response.status}`);
+      if (error) {
+        throw new Error(error.message || 'Failed to get presigned URL');
       }
 
-      const { presignedUrl, publicUrl, filename } = await response.json();
+      const { presignedUrl, publicUrl, filename } = data;
 
       // Upload directly to R2 via the presigned URL
       const uploadRes = await fetch(presignedUrl, {

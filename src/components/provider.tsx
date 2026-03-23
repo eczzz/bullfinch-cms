@@ -96,12 +96,8 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
       // Auto-detect R2 storage settings and create adapter if configured
       // Only auto-wire if the consumer hasn't already provided a storage adapter
       if (!config.storage && hasR2Settings(map)) {
-        // Extract supabaseUrl and schema directly from the client instance
-        const url = (supabase as any).supabaseUrl as string | undefined;
         const schema = (supabase as any).rest?.schemaName as string | undefined;
-        if (url) {
-          setR2Storage(createR2StorageAdapter(supabase, url, schema));
-        }
+        setR2Storage(createR2StorageAdapter(supabase, schema));
       }
     } catch (err) {
       console.error('Error loading branding settings:', err);
