@@ -15,11 +15,14 @@ interface UploadItem {
   error?: string;
 }
 
-export function MediaUpload({ onUploadComplete }: MediaUploadProps) {
+export const MediaUpload = React.forwardRef<HTMLInputElement, MediaUploadProps>(function MediaUpload({ onUploadComplete }, ref) {
   const { supabase, config, user } = useCMS();
   const [uploads, setUploads] = useState<UploadItem[]>([]);
   const [isDragging, setIsDragging] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Expose the file input ref to parent via forwarded ref
+  React.useImperativeHandle(ref, () => fileInputRef.current as HTMLInputElement);
 
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -196,4 +199,4 @@ export function MediaUpload({ onUploadComplete }: MediaUploadProps) {
       )}
     </div>
   );
-}
+});

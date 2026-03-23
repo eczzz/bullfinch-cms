@@ -24,6 +24,7 @@ export function MediaLibrary() {
   const [showUpload, setShowUpload] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
+  const uploadFileInputRef = React.useRef<HTMLInputElement>(null);
 
   const loadMedia = async () => {
     setLoading(true);
@@ -136,7 +137,15 @@ export function MediaLibrary() {
             {bulkMode ? 'Cancel' : 'Select'}
           </button>
           <button
-            onClick={() => setShowUpload(!showUpload)}
+            onClick={() => {
+              if (!showUpload) {
+                setShowUpload(true);
+                // Defer to next tick so the MediaUpload mounts first
+                setTimeout(() => uploadFileInputRef.current?.click(), 0);
+              } else {
+                uploadFileInputRef.current?.click();
+              }
+            }}
             className="inline-flex items-center gap-2 cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
           >
             <Upload className="w-4 h-4" />
@@ -149,6 +158,7 @@ export function MediaLibrary() {
       {showUpload && (
         <div className="mb-6">
           <MediaUpload
+            ref={uploadFileInputRef}
             onUploadComplete={() => {
               setShowUpload(false);
               loadMedia();
@@ -202,7 +212,14 @@ export function MediaLibrary() {
           </p>
           {media.length === 0 && (
             <button
-              onClick={() => setShowUpload(true)}
+              onClick={() => {
+                if (!showUpload) {
+                  setShowUpload(true);
+                  setTimeout(() => uploadFileInputRef.current?.click(), 0);
+                } else {
+                  uploadFileInputRef.current?.click();
+                }
+              }}
               className="inline-flex items-center gap-2 cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all"
             >
               <Upload className="w-4 h-4" />
