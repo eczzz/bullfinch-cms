@@ -138,6 +138,9 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         loadUser();
+        // Re-load settings now that we're authenticated — RLS may expose
+        // additional rows (e.g. R2 integration keys) to authenticated users.
+        loadBranding();
       } else {
         setUser(null);
         setIsAuthenticated(false);
@@ -146,7 +149,7 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
     });
 
     return () => subscription.unsubscribe();
-  }, [supabase, loadUser]);
+  }, [supabase, loadUser, loadBranding]);
 
   const login = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
