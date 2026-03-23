@@ -2,7 +2,7 @@
 // Edge function that generates presigned PUT URLs for Cloudflare R2 uploads.
 // Reads R2 credentials from the settings table, verifies auth via Supabase JWT.
 
-import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 import { AwsClient } from 'https://esm.sh/aws4fetch@1.0.20';
 
 const corsHeaders = {
