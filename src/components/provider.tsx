@@ -1,7 +1,8 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { CMSConfig, CMSContextValue, BrandingConfig, User } from '../core/types';
+import type { CMSConfig, CMSContextValue, BrandingConfig, User, StorageAdapter } from '../core/types';
 import { fetchCurrentUser } from '../core/queries';
+import { createR2StorageAdapter, hasR2Settings } from '../core/storage';
 
 const CMSContext = createContext<CMSContextValue | null>(null);
 
@@ -35,11 +36,13 @@ function applyFavicon(url: string) {
 
 interface CMSProviderProps {
   supabase: SupabaseClient;
+  /** The Supabase project URL (e.g. https://xyz.supabase.co). Required for R2 auto-detection. */
+  supabaseUrl?: string;
   config?: CMSConfig;
   children: React.ReactNode;
 }
 
-export function CMSProvider({ supabase, config = {}, children }: CMSProviderProps) {
+export function CMSProvider({ supabase, supabaseUrl, config = {}, children }: CMSProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
@@ -47,6 +50,7 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
     ...DEFAULT_BRANDING,
     ...config.branding,
   });
+  const [r2Storage, setR2Storage] = useState<StorageAdapter | null>(null);
 
   const loadBranding = useCallback(async () => {
     try {
@@ -90,10 +94,16 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
       if (merged.faviconUrl) {
         applyFavicon(merged.faviconUrl);
       }
+
+      // Auto-detect R2 storage settings and create adapter if configured
+      // Only auto-wire if the consumer hasn't already provided a storage adapter
+      if (!config.storage && hasR2Settings(map) && supabaseUrl) {
+        setR2Storage(createR2StorageAdapter(supabase, supabaseUrl, config.schema));
+      }
     } catch (err) {
       console.error('Error loading branding settings:', err);
     }
-  }, [supabase, config.branding]);
+  }, [supabase, supabaseUrl, config.branding, config.storage]);
 
   const loadUser = useCallback(async () => {
     try {
@@ -146,9 +156,15 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
     setIsAuthenticated(false);
   }, [supabase]);
 
+  // Build effective config: merge auto-detected R2 storage into config if present
+  const effectiveConfig = useMemo<CMSConfig>(() => {
+    if (config.storage || !r2Storage) return config;
+    return { ...config, storage: r2Storage };
+  }, [config, r2Storage]);
+
   const value: CMSContextValue = {
     supabase,
-    config,
+    config: effectiveConfig,
     branding,
     user,
     isAuthenticated,
