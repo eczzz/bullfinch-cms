@@ -122,7 +122,7 @@ npx tsx src/cli/index.ts entries test-off --schema cms_<client> --id <entry-uuid
 ## New Client Setup
 
 1. **Clone bullfinch-cms**, run `npm install && npm run build`
-2. **Set env vars** for your Supabase project (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`)
+2. **Set env vars** for your Supabase project (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and optionally `SUPABASE_ACCESS_TOKEN` for auto-exposing the schema via PostgREST)
 3. **Init schema:** `npx tsx src/cli/index.ts init --schema cms_<client> --name "<Client Name>"`
    - Init automatically runs ALL migrations — new schemas are fully configured
    - If `exec_sql` function missing, create it first (see README)
