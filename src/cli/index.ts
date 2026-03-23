@@ -513,7 +513,7 @@ async function cmdMigrate(flags: Record<string, string | true>): Promise<void> {
   console.log(`Running migrations for schema "${schema}"...`);
   const supabase = getSupabase();
 
-  const migrationFiles = ['001_initial', '002_fix_cascade_deletes', '003_test_mode'];
+  const migrationFiles = ['001_initial', '002_fix_cascade_deletes', '003_test_mode', '004_grant_roles'];
 
   // Check which migrations have already been applied
   const { data: applied } = await supabase.rpc('exec_sql_read', {

@@ -8,6 +8,13 @@
 -- Create schema
 CREATE SCHEMA IF NOT EXISTS SCHEMA_NAME;
 
+-- Grant access to Supabase roles
+GRANT USAGE ON SCHEMA SCHEMA_NAME TO anon, authenticated;
+GRANT ALL ON ALL TABLES IN SCHEMA SCHEMA_NAME TO anon, authenticated;
+GRANT ALL ON ALL SEQUENCES IN SCHEMA SCHEMA_NAME TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA SCHEMA_NAME GRANT ALL ON TABLES TO anon, authenticated;
+ALTER DEFAULT PRIVILEGES IN SCHEMA SCHEMA_NAME GRANT ALL ON SEQUENCES TO anon, authenticated;
+
 SET search_path TO SCHEMA_NAME, public;
 
 -- ============================================================================
