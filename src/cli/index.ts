@@ -458,6 +458,45 @@ async function cmdInit(flags: Record<string, string | true>): Promise<void> {
   console.log('Running subsequent migrations...');
   await cmdMigrate({ ...flags, schema });
 
+  // Expose schema via PostgREST (Management API)
+  const mgmtToken = process.env.SUPABASE_ACCESS_TOKEN;
+  if (mgmtToken) {
+    const url = env('SUPABASE_URL');
+    const ref = new URL(url).hostname.split('.')[0];
+    try {
+      const configRes = await fetch(`https://api.supabase.com/v1/projects/${ref}/postgrest`, {
+        headers: { 'Authorization': `Bearer ${mgmtToken}` },
+      });
+      if (configRes.ok) {
+        const config = await configRes.json() as Record<string, unknown>;
+        const currentSchemas = (config.db_schema as string) || 'public,graphql_public';
+        if (!currentSchemas.split(',').map((s: string) => s.trim()).includes(schema)) {
+          const newSchemas = `${currentSchemas},${schema}`;
+          const updateRes = await fetch(`https://api.supabase.com/v1/projects/${ref}/postgrest`, {
+            method: 'PATCH',
+            headers: {
+              'Authorization': `Bearer ${mgmtToken}`,
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ db_schema: newSchemas }),
+          });
+          if (updateRes.ok) {
+            console.log(`PostgREST: exposed schema "${schema}" via API.`);
+          } else {
+            console.warn(`Warning: Could not update PostgREST config (${updateRes.status}). Add "${schema}" to exposed schemas manually in Supabase Dashboard → Settings → API.`);
+          }
+        } else {
+          console.log(`PostgREST: schema "${schema}" already exposed.`);
+        }
+      }
+    } catch {
+      console.warn('Warning: Could not reach Supabase Management API to expose schema. Add it manually in Dashboard → Settings → API.');
+    }
+  } else {
+    console.log(`\nNote: Set SUPABASE_ACCESS_TOKEN env var to auto-expose the schema via PostgREST.`);
+    console.log(`Otherwise, add "${schema}" to the exposed schemas in Supabase Dashboard → Settings → API.`);
+  }
+
   if (isJson(flags)) {
     output({ status: 'ok', schema, name }, flags);
   } else {
