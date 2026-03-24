@@ -2,8 +2,9 @@
 
 import { createClient, type SupabaseClient } from '@supabase/supabase-js';
 import { readFileSync, existsSync } from 'fs';
-import { resolve, dirname } from 'path';
+import { resolve, dirname, extname, basename } from 'path';
 import { fileURLToPath } from 'url';
+import { AwsClient } from 'aws4fetch';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const VERSION = '0.1.0';
@@ -1274,6 +1275,175 @@ async function cmdMediaDelete(flags: Record<string, string | true>): Promise<voi
   }
 }
 
+// ─── Media Upload / Import Helpers ──────────────────────────────────────────
+
+const EXT_TO_MIME: Record<string, string> = {
+  jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png',
+  gif: 'image/gif', webp: 'image/webp', svg: 'image/svg+xml',
+  avif: 'image/avif', ico: 'image/x-icon', bmp: 'image/bmp',
+  tiff: 'image/tiff', tif: 'image/tiff',
+  pdf: 'application/pdf', mp4: 'video/mp4', webm: 'video/webm',
+};
+
+interface R2Config {
+  client: AwsClient;
+  bucketName: string;
+  publicUrl: string;
+  accountId: string;
+}
+
+async function getR2Config(supabase: SupabaseClient, schema: string): Promise<R2Config> {
+  const keys = [
+    'integration_r2_account_id',
+    'integration_r2_access_key_id',
+    'integration_r2_secret_access_key',
+    'integration_r2_bucket_name',
+    'integration_r2_public_url',
+  ] as const;
+
+  const { data, error } = await supabase
+    .from('settings')
+    .select('key, value')
+    .in('key', [...keys]);
+  if (error) die(error.message);
+
+  const settings: Record<string, string> = {};
+  for (const row of data || []) settings[row.key] = row.value;
+
+  for (const k of keys) {
+    if (!settings[k]) die(`R2 not configured: missing ${k} in ${schema}.settings`);
+  }
+
+  return {
+    client: new AwsClient({
+      accessKeyId: settings.integration_r2_access_key_id,
+      secretAccessKey: settings.integration_r2_secret_access_key,
+    }),
+    bucketName: settings.integration_r2_bucket_name,
+    publicUrl: settings.integration_r2_public_url,
+    accountId: settings.integration_r2_account_id,
+  };
+}
+
+function generateR2Key(ext: string): string {
+  return `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+}
+
+async function uploadToR2(
+  r2: R2Config,
+  key: string,
+  body: Buffer | Uint8Array,
+  mimeType: string,
+): Promise<string> {
+  const objectUrl = `https://${r2.accountId}.r2.cloudflarestorage.com/${r2.bucketName}/${key}`;
+  const res = await r2.client.fetch(objectUrl, {
+    method: 'PUT',
+    headers: { 'Content-Type': mimeType },
+    body,
+  });
+  if (!res.ok) {
+    const text = await res.text();
+    die(`R2 upload failed (${res.status}): ${text}`);
+  }
+  const publicUrl = r2.publicUrl.replace(/\/$/, '');
+  return `${publicUrl}/${key}`;
+}
+
+async function insertMediaRecord(
+  supabase: SupabaseClient,
+  filename: string,
+  url: string,
+  mimeType: string,
+  size: number,
+): Promise<Record<string, unknown>> {
+  const { data, error } = await supabase
+    .from('media')
+    .insert({ filename, url, mime_type: mimeType, size })
+    .select()
+    .single();
+  if (error) die(error.message);
+  return data;
+}
+
+async function cmdMediaUpload(flags: Record<string, string | true>): Promise<void> {
+  const schema = requireFlag(flags, 'schema');
+  const filePath = requireFlag(flags, 'file');
+
+  const resolved = resolve(filePath);
+  if (!existsSync(resolved)) die(`File not found: ${resolved}`);
+
+  const fileBuffer = readFileSync(resolved);
+  const filename = basename(resolved);
+  const ext = extname(filename).slice(1).toLowerCase();
+  const mimeType = EXT_TO_MIME[ext];
+  if (!mimeType) die(`Unknown file extension: .${ext}`);
+
+  const supabase = getSupabase(schema);
+  const r2 = await getR2Config(supabase, schema);
+  const key = generateR2Key(ext);
+  const url = await uploadToR2(r2, key, fileBuffer, mimeType);
+
+  const record = await insertMediaRecord(supabase, filename, url, mimeType, fileBuffer.length);
+
+  if (isJson(flags)) {
+    output(record, flags);
+  } else {
+    console.log(`Uploaded "${filename}" (${fileBuffer.length} bytes, ${mimeType})`);
+    console.log(`URL: ${url}`);
+  }
+}
+
+async function cmdMediaImport(flags: Record<string, string | true>): Promise<void> {
+  const schema = requireFlag(flags, 'schema');
+  const url = requireFlag(flags, 'url');
+
+  const res = await fetch(url);
+  if (!res.ok) die(`Failed to fetch URL (${res.status}): ${url}`);
+
+  const contentType = res.headers.get('content-type') || '';
+  if (!contentType.startsWith('image/')) {
+    die(`URL content-type is "${contentType}", expected image/*`);
+  }
+
+  const arrayBuf = await res.arrayBuffer();
+  const fileBuffer = new Uint8Array(arrayBuf);
+  const maxSize = 50 * 1024 * 1024; // 50MB
+  if (fileBuffer.length > maxSize) {
+    die(`File too large: ${fileBuffer.length} bytes (max 50MB)`);
+  }
+
+  // Extract filename from URL path, fallback to generated name
+  let filename: string;
+  try {
+    const pathname = new URL(url).pathname;
+    filename = basename(pathname);
+    if (!filename || filename === '/' || !filename.includes('.')) {
+      throw new Error('no usable filename');
+    }
+  } catch {
+    const subtype = contentType.split('/')[1]?.split(';')[0] || 'bin';
+    const extMap: Record<string, string> = { jpeg: 'jpg', 'svg+xml': 'svg' };
+    filename = `import-${Date.now()}.${extMap[subtype] || subtype}`;
+  }
+
+  const ext = extname(filename).slice(1).toLowerCase();
+  const mimeType = EXT_TO_MIME[ext] || contentType.split(';')[0].trim();
+
+  const supabase = getSupabase(schema);
+  const r2 = await getR2Config(supabase, schema);
+  const key = generateR2Key(ext);
+  const publicUrl = await uploadToR2(r2, key, fileBuffer, mimeType);
+
+  const record = await insertMediaRecord(supabase, filename, publicUrl, mimeType, fileBuffer.length);
+
+  if (isJson(flags)) {
+    output(record, flags);
+  } else {
+    console.log(`Imported "${filename}" (${fileBuffer.length} bytes, ${mimeType})`);
+    console.log(`URL: ${publicUrl}`);
+  }
+}
+
 // ─── Settings ───────────────────────────────────────────────────────────────
 
 async function cmdSettingsList(flags: Record<string, string | true>): Promise<void> {
@@ -1402,7 +1572,7 @@ Commands:
   schemas    List and inspect CMS schemas
   models     CRUD operations on content models
   entries    CRUD operations on content entries
-  media      Manage media records
+  media      Manage media (list, delete, upload, import)
   settings   Manage CMS settings
   users      Manage CMS users
   init       Initialize a new schema
@@ -1489,6 +1659,8 @@ Usage: bullfinch-cms media <subcommand> [flags]
 Subcommands:
   list     --schema <name> [--limit N]
   delete   --schema <name> --id <uuid>
+  upload   --schema <name> --file <path>       Upload a local file to R2
+  import   --schema <name> --url <url>         Fetch a URL and upload to R2
 
 Flags:
   --json    Output in JSON format
@@ -1838,6 +2010,8 @@ async function main(): Promise<void> {
       case 'media':
         if (subcommand === 'list') return await cmdMediaList(flags);
         if (subcommand === 'delete') return await cmdMediaDelete(flags);
+        if (subcommand === 'upload') return await cmdMediaUpload(flags);
+        if (subcommand === 'import') return await cmdMediaImport(flags);
         die(`Unknown subcommand: media ${subcommand}. Run "bullfinch-cms media --help"`);
         break;
 
