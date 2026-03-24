@@ -119,13 +119,39 @@ npx tsx src/cli/index.ts entries test-off --schema cms_<client> --id <entry-uuid
 - `test-off` fails if no snapshot exists (prevents data loss)
 - `test_mode` boolean column tracks state
 
+## Schema Verification
+
+The CLI includes a `verify` command that runs a 7-point checklist against any schema:
+
+```bash
+npx tsx src/cli/index.ts verify --schema cms_<client>
+```
+
+**Checks performed:**
+- ✅ Schema exists
+- ✅ All 6 required tables present (users, content_models, content_entries, media, settings, _migrations)
+- ✅ `service_role` has SELECT grants (required for PostgREST service key requests)
+- ✅ PostgREST schema exposure (if `SUPABASE_ACCESS_TOKEN` is set)
+- ✅ `exec_sql` and `exec_sql_read` helper functions exist
+- ✅ Auto-grant event trigger exists for the schema
+- ✅ All migrations applied (001–006)
+
+Exit code 0 = all pass, 1 = failures. Use `--json` for machine-readable output.
+
+**When to run:** After init (runs automatically), after migrate, or anytime something seems broken with a CMS schema. This is your first troubleshooting step.
+
 ## New Client Setup
 
 1. **Clone bullfinch-cms**, run `npm install && npm run build`
-2. **Set env vars** for your Supabase project (`SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, and optionally `SUPABASE_ACCESS_TOKEN` for auto-exposing the schema via PostgREST)
+2. **Set env vars** for your Supabase project:
+   - `SUPABASE_URL` (required)
+   - `SUPABASE_SERVICE_ROLE_KEY` (required)
+   - `SUPABASE_ACCESS_TOKEN` (optional — enables auto-exposing schema via PostgREST Management API)
 3. **Init schema:** `npx tsx src/cli/index.ts init --schema cms_<client> --name "<Client Name>"`
-   - Init automatically runs ALL migrations — new schemas are fully configured
-   - If `exec_sql` function missing, create it first (see README)
+   - Init automatically runs ALL migrations (001–006) — new schemas are fully configured
+   - Migration 005 installs an event trigger that auto-grants permissions on any future tables
+   - Migration 006 creates `exec_sql` and `exec_sql_read` helpers — no manual SQL Editor step
+   - Init chains into `verify` automatically — you get a green/red checklist immediately
 4. **Scaffold client CMS app:**
    ```bash
    npx tsx src/cli/index.ts scaffold --name "<Client Name>" --schema cms_<client> --dir ./<client>-cms --primary "#224059" --accent "#FFC844"
@@ -139,11 +165,23 @@ npx tsx src/cli/index.ts entries test-off --schema cms_<client> --id <entry-uuid
      - `resolve.dedupe` in Vite config (no dual React)
      - Netlify `_redirects` for SPA routing (no 404s on refresh)
      - Branding config with business name and colors
-5. **Add RLS policies** for public frontend reads:
+5. **Verify** (if not using init, or to double-check):
+   ```bash
+   npx tsx src/cli/index.ts verify --schema cms_<client>
+   ```
+6. **Add RLS policies** for public frontend reads:
    ```sql
    CREATE POLICY <name>_public_select ON cms_<schema>.content_models FOR SELECT TO anon USING (true);
    CREATE POLICY <name>_public_select ON cms_<schema>.content_entries FOR SELECT TO anon USING (status = 'published');
    ```
+
+### Updating Existing Client Schemas
+
+To backfill new migrations (service_role grants, event trigger, exec_sql helpers) on existing schemas:
+```bash
+npx tsx src/cli/index.ts migrate --schema cms_<client>
+npx tsx src/cli/index.ts verify --schema cms_<client>
+```
 
 ## The Page Wiring Loop
 
@@ -335,6 +373,19 @@ Field order = grouped by section, in page reading order.
 | Double-wrapped CSS url() | Used `url(var(--bg))` | Prompt includes correct pattern |
 | Paired text+url instead of button | Didn't know button type existed | CLI warns on paired fields |
 
+## Migrations Reference
+
+| Migration | Purpose |
+|-----------|---------|
+| 001_initial | Base schema, tables, RLS, triggers, grants (anon, authenticated, service_role) |
+| 002_fix_cascade_deletes | Change created_by/uploaded_by FK from CASCADE to SET NULL |
+| 003_test_mode | Add test_mode + _snapshot columns to content_entries |
+| 004_grant_roles | Re-apply grants (anon, authenticated, service_role) |
+| 005_auto_grant_event_trigger | Event trigger that auto-grants on any new table in the schema |
+| 006_exec_sql_helpers | Creates exec_sql + exec_sql_read in public schema |
+
+All migrations are idempotent (safe to run multiple times). The `init` command chains all of them automatically.
+
 ## Common Gotchas
 
 - **RLS blocks anon reads** — always add public SELECT policies
@@ -344,3 +395,5 @@ Field order = grouped by section, in page reading order.
 - **CSS background images** — use CSS custom property pattern, not hardcoded
 - **SEO goes in `seo` column** — not as model fields
 - **Init runs all migrations** — new schemas are always fully configured
+- **PostgREST returns empty?** — run `verify` first. Usually missing `service_role` grants or schema not exposed
+- **Something broken after setup?** — `bullfinch-cms verify --schema cms_xxx` is always the first troubleshooting step
