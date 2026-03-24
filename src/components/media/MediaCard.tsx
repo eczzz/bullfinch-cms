@@ -1,9 +1,26 @@
 import React, { useState } from 'react';
-import { Trash2, Copy, Download, File, Image, Film, FileText, Check } from 'lucide-react';
+import { Trash2, Copy, Download, File, Image, Film, FileText, Check, ExternalLink } from 'lucide-react';
 import { useCMS } from '../provider';
 import { ConfirmationModal } from '../common/ConfirmationModal';
 import { formatFileSize, formatDate } from '../../core/helpers';
 import type { MediaItem } from '../../core/types';
+
+/** Clipboard write with fallback for non-HTTPS contexts (LAN IPs, etc.) */
+async function copyToClipboard(text: string): Promise<void> {
+  if (navigator.clipboard && window.isSecureContext) {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  // Fallback: textarea + execCommand
+  const textarea = document.createElement('textarea');
+  textarea.value = text;
+  textarea.style.position = 'fixed';
+  textarea.style.left = '-9999px';
+  document.body.appendChild(textarea);
+  textarea.select();
+  document.execCommand('copy');
+  document.body.removeChild(textarea);
+}
 
 interface MediaCardProps {
   media: MediaItem;
@@ -35,9 +52,14 @@ export function MediaCard({ media, onDelete, selectable, selected, onToggleSelec
 
   const handleCopy = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    await navigator.clipboard.writeText(media.url);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    try {
+      await copyToClipboard(media.url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Last resort: open a prompt-like display (won't happen with the fallback, but just in case)
+      console.error('Copy to clipboard failed');
+    }
   };
 
   return (
@@ -85,22 +107,34 @@ export function MediaCard({ media, onDelete, selectable, selected, onToggleSelec
             </div>
           )}
 
-          {/* Hover overlay */}
+          {/* Hover action bar — positioned at bottom only so right-click on image still works */}
           {hovered && !selectable && (
-            <div className="absolute inset-0 bg-black/50 flex flex-col justify-end p-3 transition-opacity">
+            <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 to-transparent p-3 pt-8 transition-opacity">
               <div className="flex items-center gap-1.5">
+                <a
+                  href={media.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={(e) => e.stopPropagation()}
+                  title="Open in new tab"
+                  className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 text-gray-700 hover:bg-white transition-all"
+                >
+                  <ExternalLink className="w-4 h-4" />
+                </a>
                 <a
                   href={media.url}
                   download
                   target="_blank"
                   rel="noopener noreferrer"
                   onClick={(e) => e.stopPropagation()}
+                  title="Download"
                   className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 text-gray-700 hover:bg-white transition-all"
                 >
                   <Download className="w-4 h-4" />
                 </a>
                 <button
                   onClick={handleCopy}
+                  title="Copy URL"
                   className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-white/90 text-gray-700 hover:bg-white transition-all"
                 >
                   {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
@@ -111,7 +145,8 @@ export function MediaCard({ media, onDelete, selectable, selected, onToggleSelec
                       e.stopPropagation();
                       setShowDeleteConfirm(true);
                     }}
-                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-all"
+                    title="Delete"
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-red-600 text-white hover:bg-red-700 transition-all ml-auto"
                   >
                     <Trash2 className="w-4 h-4" />
                   </button>
