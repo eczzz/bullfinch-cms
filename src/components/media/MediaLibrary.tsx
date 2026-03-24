@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { Search, Upload, Image, Filter, Check } from 'lucide-react';
-import { useSupabase } from '../provider';
-import { fetchMedia, deleteMediaRecord } from '../../core/queries';
+import { Search, Upload, Image, Filter, Check, Link, Loader2, X } from 'lucide-react';
+import { useCMS } from '../provider';
+import { fetchMedia, deleteMediaRecord, createMediaRecord } from '../../core/queries';
 import { MediaCard } from './MediaCard';
 import { MediaUpload } from './MediaUpload';
 import type { MediaItem } from '../../core/types';
@@ -16,15 +16,48 @@ const FILE_TYPE_FILTERS = [
 type FileTypeFilter = (typeof FILE_TYPE_FILTERS)[number]['key'];
 
 export function MediaLibrary() {
-  const supabase = useSupabase();
+  const { supabase, config, user } = useCMS();
   const [media, setMedia] = useState<MediaItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterType, setFilterType] = useState<FileTypeFilter>('all');
   const [showUpload, setShowUpload] = useState(false);
+  const [showImportUrl, setShowImportUrl] = useState(false);
+  const [importUrl, setImportUrl] = useState('');
+  const [importLoading, setImportLoading] = useState(false);
+  const [importError, setImportError] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [bulkMode, setBulkMode] = useState(false);
   const uploadFileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const canImportFromUrl = !!config.storage?.importFromUrl;
+
+  const handleImportFromUrl = async () => {
+    if (!importUrl.trim() || !config.storage?.importFromUrl) return;
+
+    setImportLoading(true);
+    setImportError('');
+
+    try {
+      const result = await config.storage.importFromUrl(importUrl.trim());
+
+      await createMediaRecord(supabase, {
+        filename: result.filename,
+        url: result.url,
+        mime_type: result.mimeType,
+        size: result.size,
+        uploaded_by: user?.id,
+      });
+
+      setImportUrl('');
+      setShowImportUrl(false);
+      loadMedia();
+    } catch (err: any) {
+      setImportError(err.message || 'Import failed');
+    } finally {
+      setImportLoading(false);
+    }
+  };
 
   const loadMedia = async () => {
     setLoading(true);
@@ -136,6 +169,23 @@ export function MediaLibrary() {
             <Check className="w-4 h-4" />
             {bulkMode ? 'Cancel' : 'Select'}
           </button>
+          {canImportFromUrl && (
+            <button
+              onClick={() => {
+                setShowImportUrl(!showImportUrl);
+                setImportError('');
+                setImportUrl('');
+              }}
+              className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all ${
+                showImportUrl
+                  ? 'bg-gray-900 text-white hover:bg-gray-800'
+                  : 'bg-white border border-gray-200 text-gray-700 hover:bg-gray-50'
+              }`}
+            >
+              <Link className="w-4 h-4" />
+              Import URL
+            </button>
+          )}
           <button
             onClick={() => {
               if (!showUpload) {
@@ -153,6 +203,52 @@ export function MediaLibrary() {
           </button>
         </div>
       </div>
+
+      {/* Import from URL bar */}
+      {showImportUrl && (
+        <div className="mb-6 flex items-center gap-3 p-4 bg-white rounded-lg ring-1 ring-gray-200">
+          <Link className="w-4 h-4 text-gray-400 flex-shrink-0" />
+          <input
+            type="text"
+            placeholder="Paste image URL..."
+            value={importUrl}
+            onChange={(e) => {
+              setImportUrl(e.target.value);
+              setImportError('');
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') handleImportFromUrl();
+            }}
+            disabled={importLoading}
+            className="flex-1 text-sm border border-gray-200 rounded-lg px-3 py-2 bg-white text-gray-900 placeholder-gray-400 focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all disabled:opacity-50"
+            autoFocus
+          />
+          <button
+            onClick={handleImportFromUrl}
+            disabled={importLoading || !importUrl.trim()}
+            className="inline-flex items-center gap-2 cms-btn-accent text-white rounded-lg px-4 py-2 text-sm font-medium shadow-sm transition-all disabled:opacity-50"
+          >
+            {importLoading ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              'Import'
+            )}
+          </button>
+          <button
+            onClick={() => {
+              setShowImportUrl(false);
+              setImportUrl('');
+              setImportError('');
+            }}
+            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-all"
+          >
+            <X className="w-4 h-4" />
+          </button>
+          {importError && (
+            <p className="text-xs text-red-600 flex-shrink-0">{importError}</p>
+          )}
+        </div>
+      )}
 
       {/* Upload zone */}
       {showUpload && (

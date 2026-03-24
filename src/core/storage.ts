@@ -107,6 +107,27 @@ export function createR2StorageAdapter(
 
       return { url: publicUrl, filename };
     },
+
+    async importFromUrl(url: string) {
+      const { data, error } = await supabase.functions.invoke('r2-import', {
+        body: { url, schema: schema || 'public' },
+      });
+
+      if (error) {
+        throw new Error(error.message || 'Failed to import from URL');
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      return {
+        url: data.publicUrl,
+        filename: data.filename,
+        mimeType: data.mimeType,
+        size: data.size,
+      };
+    },
   };
 }
 
