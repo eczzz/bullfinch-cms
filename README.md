@@ -126,7 +126,7 @@ Run the init command:
 npx @bullfinch/cms init --schema cms_basecamp --name "Base Camp Ouray"
 ```
 
-This creates the schema and all tables. If the `exec_sql` database function doesn't exist yet, the CLI will output the SQL for you to paste into the **Supabase SQL Editor** (Dashboard → SQL Editor → New Query).
+This creates the schema and all tables, then automatically runs `verify` to confirm everything is set up correctly. If the `exec_sql` database function doesn't exist yet, the CLI will output the SQL for you to paste into the **Supabase SQL Editor** (Dashboard → SQL Editor → New Query).
 
 > **Schema naming convention:** We use `cms_` prefix + a short identifier. Examples: `cms_basecamp`, `cms_lighthouse`, `cms_badass`. Keep it lowercase, underscores only.
 
@@ -849,13 +849,30 @@ Generates a complete Vite + React + TypeScript + Tailwind CMS app, ready for `np
 | `--primary` | ❌ | Primary brand color (default: `#2563eb`) |
 | `--accent` | ❌ | Accent brand color |
 
+### `verify` — Check schema health
+
+```bash
+npx @bullfinch/cms verify --schema cms_acme
+```
+
+Runs a checklist of health checks against an existing schema and prints pass/fail for each:
+- Schema exists
+- All required tables exist
+- `service_role` has SELECT grants
+- PostgREST schema exposure (requires `SUPABASE_ACCESS_TOKEN`)
+- `exec_sql` / `exec_sql_read` functions exist
+- Event trigger for auto-granting permissions exists
+- All migrations applied
+
+Exit code 0 if all pass, 1 if any fail. Useful in CI or after init to confirm everything is wired correctly.
+
 ### `init` — Create a new client schema
 
 ```bash
 npx @bullfinch/cms init --schema cms_acme --name "Acme Corp"
 ```
 
-Creates the Postgres schema, all tables, RLS policies, indexes, triggers, and seeds default settings.
+Creates the Postgres schema, all tables, RLS policies, indexes, triggers, and seeds default settings. Automatically runs `verify` at the end and prints a health checklist.
 
 ### `migrate` — Run migrations on existing schema
 
@@ -1007,7 +1024,10 @@ npx @bullfinch/cms entries test-off --schema cms_acme --id <entry-uuid>
 │   │   └── migrations/
 │   │       ├── 001_initial.sql             # Base schema (multi-tenant)
 │   │       ├── 002_fix_cascade_deletes.sql # Fix FK cascades (SET NULL)
-│   │       └── 003_test_mode.sql           # Add test_mode + _snapshot columns
+│   │       ├── 003_test_mode.sql           # Add test_mode + _snapshot columns
+│   │       ├── 004_grant_roles.sql         # Grant schema access to roles
+│   │       ├── 005_auto_grant_event_trigger.sql # Auto-grant on new tables
+│   │       └── 006_exec_sql_helpers.sql    # exec_sql / exec_sql_read functions
 │   └── cli/
 │       └── index.ts                        # CLI entry point
 ├── package.json
@@ -1048,6 +1068,16 @@ npm run dev  # Rebuilds on file changes
 ---
 
 ## Troubleshooting
+
+### First step: run `verify`
+
+If something isn't working, start here:
+
+```bash
+npx @bullfinch/cms verify --schema cms_yourschema
+```
+
+This checks grants, tables, functions, triggers, and migrations in one shot. Fix whatever shows a red X.
 
 ### "exec_sql function does not exist"
 

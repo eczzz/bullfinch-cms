@@ -497,8 +497,13 @@ async function cmdInit(flags: Record<string, string | true>): Promise<void> {
     console.log(`Otherwise, add "${schema}" to the exposed schemas in Supabase Dashboard → Settings → API.`);
   }
 
+  // Run verification
+  console.log('\nRunning verification...');
+  const checks = await cmdVerify({ ...flags, schema });
+  const allPass = checks.every((c) => c.pass);
+
   if (isJson(flags)) {
-    output({ status: 'ok', schema, name }, flags);
+    output({ status: allPass ? 'ok' : 'warning', schema, name, checks }, flags);
   } else {
     console.log(`\nSchema "${schema}" initialized successfully (all migrations applied).`);
     console.log(`\nNext steps:`);
@@ -513,7 +518,7 @@ async function cmdMigrate(flags: Record<string, string | true>): Promise<void> {
   console.log(`Running migrations for schema "${schema}"...`);
   const supabase = getSupabase();
 
-  const migrationFiles = ['001_initial', '002_fix_cascade_deletes', '003_test_mode', '004_grant_roles'];
+  const migrationFiles = ['001_initial', '002_fix_cascade_deletes', '003_test_mode', '004_grant_roles', '005_auto_grant_event_trigger', '006_exec_sql_helpers'];
 
   // Check which migrations have already been applied
   const { data: applied } = await supabase.rpc('exec_sql_read', {
@@ -551,6 +556,142 @@ async function cmdMigrate(flags: Record<string, string | true>): Promise<void> {
       console.log(`${ranCount} migration(s) complete for "${schema}".`);
     }
   }
+}
+
+// ─── Verify Command ──────────────────────────────────────────────────────────
+
+interface VerifyCheck {
+  name: string;
+  pass: boolean;
+  detail?: string;
+}
+
+async function cmdVerify(flags: Record<string, string | true>): Promise<VerifyCheck[]> {
+  const schema = requireFlag(flags, 'schema');
+  const supabase = getSupabase();
+  const checks: VerifyCheck[] = [];
+
+  // 1. Schema exists
+  const { data: schemaExists } = await supabase.rpc('exec_sql_read', {
+    query: `SELECT 1 AS ok FROM information_schema.schemata WHERE schema_name = '${schema}'`,
+  });
+  const schemaOk = Array.isArray(schemaExists) && schemaExists.length > 0;
+  checks.push({ name: 'Schema exists', pass: schemaOk });
+
+  if (!schemaOk) {
+    // Can't check anything else
+    printVerifyResults(checks, schema, flags);
+    return checks;
+  }
+
+  // 2. Required tables exist
+  const requiredTables = ['users', 'content_models', 'content_entries', 'media', 'settings', '_migrations'];
+  const { data: tables } = await supabase.rpc('exec_sql_read', {
+    query: `SELECT table_name FROM information_schema.tables WHERE table_schema = '${schema}'`,
+  });
+  const tableSet = new Set<string>();
+  if (Array.isArray(tables)) {
+    for (const row of tables) {
+      tableSet.add(typeof row === 'string' ? row : (row as Record<string, unknown>).table_name as string);
+    }
+  }
+  for (const t of requiredTables) {
+    checks.push({ name: `Table ${t}`, pass: tableSet.has(t) });
+  }
+
+  // 3. service_role has SELECT on schema tables
+  const { data: grants } = await supabase.rpc('exec_sql_read', {
+    query: `SELECT COUNT(*)::int AS cnt FROM information_schema.role_table_grants WHERE table_schema = '${schema}' AND grantee = 'service_role' AND privilege_type = 'SELECT'`,
+  });
+  const grantCount = Array.isArray(grants) && grants.length > 0
+    ? (grants[0] as Record<string, unknown>).cnt as number
+    : 0;
+  checks.push({
+    name: 'service_role has SELECT grants',
+    pass: grantCount >= requiredTables.length,
+    detail: `${grantCount} table(s) granted`,
+  });
+
+  // 4. PostgREST schema exposure
+  const mgmtToken = process.env.SUPABASE_ACCESS_TOKEN;
+  if (mgmtToken) {
+    const url = env('SUPABASE_URL');
+    const ref = new URL(url).hostname.split('.')[0];
+    try {
+      const configRes = await fetch(`https://api.supabase.com/v1/projects/${ref}/postgrest`, {
+        headers: { 'Authorization': `Bearer ${mgmtToken}` },
+      });
+      if (configRes.ok) {
+        const config = await configRes.json() as Record<string, unknown>;
+        const schemas = ((config.db_schema as string) || '').split(',').map((s: string) => s.trim());
+        checks.push({ name: 'PostgREST schema exposed', pass: schemas.includes(schema) });
+      } else {
+        checks.push({ name: 'PostgREST schema exposed', pass: false, detail: `API returned ${configRes.status}` });
+      }
+    } catch {
+      checks.push({ name: 'PostgREST schema exposed', pass: false, detail: 'Could not reach Management API' });
+    }
+  } else {
+    checks.push({ name: 'PostgREST schema exposed', pass: false, detail: 'SUPABASE_ACCESS_TOKEN not set (skipped)' });
+  }
+
+  // 5. exec_sql and exec_sql_read functions exist
+  const { data: funcs } = await supabase.rpc('exec_sql_read', {
+    query: `SELECT routine_name FROM information_schema.routines WHERE routine_schema = 'public' AND routine_name IN ('exec_sql', 'exec_sql_read')`,
+  });
+  const funcSet = new Set<string>();
+  if (Array.isArray(funcs)) {
+    for (const row of funcs) {
+      funcSet.add(typeof row === 'string' ? row : (row as Record<string, unknown>).routine_name as string);
+    }
+  }
+  checks.push({ name: 'Function exec_sql exists', pass: funcSet.has('exec_sql') });
+  checks.push({ name: 'Function exec_sql_read exists', pass: funcSet.has('exec_sql_read') });
+
+  // 6. Event trigger exists for schema
+  const { data: triggers } = await supabase.rpc('exec_sql_read', {
+    query: `SELECT evtname FROM pg_event_trigger WHERE evtname = 'trg_auto_grant_${schema}'`,
+  });
+  const triggerOk = Array.isArray(triggers) && triggers.length > 0;
+  checks.push({ name: 'Event trigger exists', pass: triggerOk });
+
+  // 7. All migrations applied
+  const allMigrations = ['001_initial', '002_fix_cascade_deletes', '003_test_mode', '004_grant_roles', '005_auto_grant_event_trigger', '006_exec_sql_helpers'];
+  const { data: applied } = await supabase.rpc('exec_sql_read', {
+    query: `SELECT name FROM ${schema}._migrations`,
+  });
+  const appliedSet = new Set<string>();
+  if (Array.isArray(applied)) {
+    for (const row of applied) {
+      appliedSet.add(typeof row === 'string' ? row : (row as Record<string, unknown>).name as string);
+    }
+  }
+  const missingMigrations = allMigrations.filter((m) => !appliedSet.has(m));
+  checks.push({
+    name: 'All migrations applied',
+    pass: missingMigrations.length === 0,
+    detail: missingMigrations.length > 0 ? `missing: ${missingMigrations.join(', ')}` : undefined,
+  });
+
+  printVerifyResults(checks, schema, flags);
+  return checks;
+}
+
+function printVerifyResults(checks: VerifyCheck[], schema: string, flags: Record<string, string | true>): void {
+  if (isJson(flags)) {
+    const allPass = checks.every((c) => c.pass);
+    output({ status: allPass ? 'ok' : 'fail', schema, checks }, flags);
+    return;
+  }
+
+  console.log(`\nVerification for "${schema}":\n`);
+  for (const c of checks) {
+    const icon = c.pass ? '\u2705' : '\u274C';
+    const detail = c.detail ? ` (${c.detail})` : '';
+    console.log(`  ${icon} ${c.name}${detail}`);
+  }
+  const allPass = checks.every((c) => c.pass);
+  console.log(allPass ? '\nAll checks passed.' : '\nSome checks failed.');
 }
 
 function cmdExport(flags: Record<string, string | true>): void {
@@ -1265,6 +1406,7 @@ Commands:
   settings   Manage CMS settings
   users      Manage CMS users
   init       Initialize a new schema
+  verify     Verify schema setup is correct
   scaffold   Scaffold a new CMS client app
   migrate    Run migrations on a schema
   export     Export schema data (pg_dump helper)
@@ -1404,6 +1546,23 @@ const HELP_MIGRATE = `
 Usage: bullfinch-cms migrate --schema <name>
 
 Run migrations on an existing schema.
+
+Flags:
+  --schema <name>    Schema name
+  --json             Output in JSON format
+`.trim();
+
+const HELP_VERIFY = `
+Usage: bullfinch-cms verify --schema <name>
+
+Verify that a schema is correctly configured. Checks:
+  - Schema exists
+  - All required tables exist
+  - service_role has SELECT grants
+  - PostgREST schema exposure (requires SUPABASE_ACCESS_TOKEN)
+  - exec_sql / exec_sql_read functions exist
+  - Event trigger exists
+  - All migrations applied
 
 Flags:
   --schema <name>    Schema name
@@ -1607,6 +1766,7 @@ const HELP_MAP: Record<string, string> = {
   settings: HELP_SETTINGS,
   users: HELP_USERS,
   init: HELP_INIT,
+  verify: HELP_VERIFY,
   scaffold: HELP_SCAFFOLD,
   migrate: HELP_MIGRATE,
   export: HELP_EXPORT,
@@ -1700,6 +1860,13 @@ async function main(): Promise<void> {
       // ── Legacy Commands ──
       case 'init':
         return await cmdInit(flags);
+
+      case 'verify': {
+        const checks = await cmdVerify(flags);
+        const allPass = checks.every((c) => c.pass);
+        if (!allPass) process.exit(1);
+        return;
+      }
 
       case 'scaffold':
         return await cmdScaffold(flags);
