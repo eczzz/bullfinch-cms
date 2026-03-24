@@ -161,6 +161,12 @@ export interface StorageAdapter {
     publicUrl: string;
     filename: string;
   }>;
+  importFromUrl?(url: string): Promise<{
+    url: string;
+    filename: string;
+    mimeType: string;
+    size: number;
+  }>;
 }
 
 // ─── CMS Config ─────────────────────────────────────────────────────────────
