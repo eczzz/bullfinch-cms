@@ -1052,15 +1052,19 @@ async function cmdEntriesUpdate(flags: Record<string, string | true>): Promise<v
 
   const fieldsRaw = optionalFlag(flags, 'fields');
   if (fieldsRaw) {
-    updates.fields = parseFieldsArg(fieldsRaw);
+    const incomingFields = parseFieldsArg(fieldsRaw);
 
-    // Fetch the entry to get its content_model_id, then the model for validation
+    // Fetch the entry to get its content_model_id and existing fields for merge
     const { data: entry, error: entryErr } = await supabase
       .from('content_entries')
-      .select('content_model_id')
+      .select('content_model_id, fields')
       .eq('id', id)
       .single();
     if (entryErr) die(`Entry "${id}" not found: ${entryErr.message}`);
+
+    // Merge: existing fields as base, incoming fields override
+    const existingFields = (entry.fields || {}) as Record<string, unknown>;
+    updates.fields = { ...existingFields, ...incomingFields };
 
     const { data: model, error: modelErr } = await supabase
       .from('content_models')
