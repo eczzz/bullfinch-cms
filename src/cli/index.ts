@@ -1329,7 +1329,13 @@ async function getR2Config(supabase: SupabaseClient, schema: string): Promise<R2
   };
 }
 
-function generateR2Key(ext: string): string {
+function generateR2Key(ext: string, originalName?: string): string {
+  if (originalName) {
+    // Preserve original filename — sanitize but keep SEO-friendly name
+    const nameWithoutExt = originalName.replace(/\.[^.]+$/, '');
+    const sanitized = nameWithoutExt.replace(/[^a-zA-Z0-9_-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase();
+    return `uploads/${sanitized}.${ext}`;
+  }
   return `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 }
 
@@ -1384,7 +1390,7 @@ async function cmdMediaUpload(flags: Record<string, string | true>): Promise<voi
 
   const supabase = getSupabase(schema);
   const r2 = await getR2Config(supabase, schema);
-  const key = generateR2Key(ext);
+  const key = generateR2Key(ext, filename);
   const url = await uploadToR2(r2, key, fileBuffer, mimeType);
 
   const record = await insertMediaRecord(supabase, filename, url, mimeType, fileBuffer.length);
