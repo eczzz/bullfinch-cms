@@ -165,8 +165,20 @@ export function SEOPanel({ seoData, onChange, entryTitle }: SEOPanelProps) {
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1.5">Structured Data (JSON-LD)</label>
               <textarea
-                value={data.structuredData || ''}
-                onChange={(e) => handleChange('structuredData', e.target.value)}
+                value={
+                  typeof data.structuredData === 'object' && data.structuredData !== null
+                    ? JSON.stringify(data.structuredData, null, 2)
+                    : data.structuredData || ''
+                }
+                onChange={(e) => {
+                  const raw = e.target.value;
+                  try {
+                    const parsed = JSON.parse(raw);
+                    handleChange('structuredData', parsed);
+                  } catch {
+                    handleChange('structuredData', raw);
+                  }
+                }}
                 className={`${inputClass} font-mono resize-none`}
                 rows={4}
                 placeholder='{"@context": "https://schema.org", "@type": "..."}'
