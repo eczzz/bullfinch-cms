@@ -418,6 +418,31 @@ function parseFieldsArg(val: string, force = false): unknown {
   return parsed;
 }
 
+/** Parse --seo value: inline JSON or file path */
+function parseSeoArg(val: string): Record<string, unknown> {
+  const trimmed = val.trim();
+  let parsed: unknown;
+  if (trimmed.startsWith('{')) {
+    try {
+      parsed = JSON.parse(trimmed);
+    } catch (e) {
+      die(`Invalid inline JSON for --seo: ${(e as Error).message}`);
+    }
+  } else {
+    const fullPath = resolve(process.cwd(), trimmed);
+    if (!existsSync(fullPath)) die(`SEO file not found: ${fullPath}`);
+    try {
+      parsed = JSON.parse(readFileSync(fullPath, 'utf-8'));
+    } catch (e) {
+      die(`Invalid JSON in SEO file ${fullPath}: ${(e as Error).message}`);
+    }
+  }
+  if (typeof parsed !== 'object' || parsed === null || Array.isArray(parsed)) {
+    die('--seo must be a JSON object');
+  }
+  return parsed as Record<string, unknown>;
+}
+
 // ─── Existing Commands (init / migrate / export) ────────────────────────────
 
 async function cmdInit(flags: Record<string, string | true>): Promise<void> {
@@ -959,7 +984,7 @@ async function cmdEntriesList(flags: Record<string, string | true>): Promise<voi
 
   let query = supabase
     .from('content_entries')
-    .select('id, title, status, published_at, created_at, updated_at')
+    .select('id, title, status, seo, published_at, created_at, updated_at')
     .eq('content_model_id', modelId)
     .order('updated_at', { ascending: false });
 
@@ -1027,6 +1052,11 @@ async function cmdEntriesCreate(flags: Record<string, string | true>): Promise<v
     }
   }
 
+  const seoRaw = optionalFlag(flags, 'seo');
+  if (seoRaw) {
+    entry.seo = parseSeoArg(seoRaw);
+  }
+
   if (entry.status === 'published') {
     entry.published_at = new Date().toISOString();
   }
@@ -1051,25 +1081,31 @@ async function cmdEntriesUpdate(flags: Record<string, string | true>): Promise<v
   if (optionalFlag(flags, 'status')) updates.status = optionalFlag(flags, 'status');
 
   const fieldsRaw = optionalFlag(flags, 'fields');
-  if (fieldsRaw) {
-    const incomingFields = parseFieldsArg(fieldsRaw);
+  const seoRaw = optionalFlag(flags, 'seo');
 
-    // Fetch the entry to get its content_model_id and existing fields for merge
-    const { data: entry, error: entryErr } = await supabase
+  // Fetch existing entry when we need to merge fields or SEO
+  let entry: Record<string, unknown> | null = null;
+  if (fieldsRaw || seoRaw) {
+    const { data, error: entryErr } = await supabase
       .from('content_entries')
-      .select('content_model_id, fields')
+      .select('content_model_id, fields, seo')
       .eq('id', id)
       .single();
     if (entryErr) die(`Entry "${id}" not found: ${entryErr.message}`);
+    entry = data;
+  }
+
+  if (fieldsRaw) {
+    const incomingFields = parseFieldsArg(fieldsRaw);
 
     // Merge: existing fields as base, incoming fields override
-    const existingFields = (entry.fields || {}) as Record<string, unknown>;
+    const existingFields = (entry!.fields || {}) as Record<string, unknown>;
     updates.fields = { ...existingFields, ...incomingFields };
 
     const { data: model, error: modelErr } = await supabase
       .from('content_models')
       .select('*')
-      .eq('id', entry.content_model_id)
+      .eq('id', entry!.content_model_id)
       .single();
     if (modelErr) die(`Could not fetch model for entry: ${modelErr.message}`);
 
@@ -1082,6 +1118,13 @@ async function cmdEntriesUpdate(flags: Record<string, string | true>): Promise<v
         process.exit(1);
       }
     }
+  }
+
+  if (seoRaw) {
+    const incomingSeo = parseSeoArg(seoRaw);
+    // Merge: existing SEO as base, incoming values override
+    const existingSeo = (entry!.seo || {}) as Record<string, unknown>;
+    updates.seo = { ...existingSeo, ...incomingSeo };
   }
 
   if (updates.status === 'published') {
@@ -1640,8 +1683,8 @@ Usage: bullfinch-cms entries <subcommand> [flags]
 Subcommands:
   list       --schema <name> --model <api_id> [--status draft|published|archived] [--limit N]
   get        --schema <name> --id <uuid>
-  create     --schema <name> --model <api_id> --title <title> [--fields <json>] [--status draft|published]
-  update     --schema <name> --id <uuid> [--title <title>] [--fields <json>] [--status <status>]
+  create     --schema <name> --model <api_id> --title <title> [--fields <json>] [--seo <json>] [--status draft|published]
+  update     --schema <name> --id <uuid> [--title <title>] [--fields <json>] [--seo <json>] [--status <status>]
   delete     --schema <name> --id <uuid>
   publish    --schema <name> --id <uuid>
   unpublish  --schema <name> --id <uuid>
@@ -1650,6 +1693,10 @@ Subcommands:
 
 Notes:
   --fields accepts inline JSON or a path to a .json file
+  --seo accepts inline JSON or a path to a .json file
+    Valid keys: metaTitle, metaDescription, ogImage, ogTitle, ogDescription,
+    canonicalUrl, noIndex, structuredData
+    On update, SEO data is merged with existing values (not replaced)
   Entry fields are validated against the model schema:
     - Unknown keys are rejected (with fuzzy-match suggestions)
     - Values are type-checked against the model's field_type definitions

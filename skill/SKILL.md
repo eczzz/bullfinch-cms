@@ -27,8 +27,8 @@ npx tsx src/cli/index.ts <command> <subcommand> --schema cms_<client> [flags]
 
 # Examples:
 npx tsx src/cli/index.ts models create --schema cms_acme --name "Homepage" --api-id homepage --fields /tmp/homepage-fields.json
-npx tsx src/cli/index.ts entries create --schema cms_acme --model homepage --title "Homepage" --fields /tmp/homepage-data.json --status published
-npx tsx src/cli/index.ts entries update --schema cms_acme --id <uuid> --fields /tmp/updated-fields.json
+npx tsx src/cli/index.ts entries create --schema cms_acme --model homepage --title "Homepage" --fields /tmp/homepage-data.json --seo '{"metaTitle":"Homepage","metaDescription":"Welcome to Acme"}' --status published
+npx tsx src/cli/index.ts entries update --schema cms_acme --id <uuid> --fields /tmp/updated-fields.json --seo '{"metaTitle":"New Title"}'
 npx tsx src/cli/index.ts entries test-on --schema cms_acme --id <uuid>
 npx tsx src/cli/index.ts entries test-off --schema cms_acme --id <uuid>
 npx tsx src/cli/index.ts models list --schema cms_acme
@@ -247,17 +247,19 @@ npx tsx src/cli/index.ts models create --schema cms_<client> --name "<Page Name>
 - `url` for links (NOT `short_text`)
 - `button` for text+url pairs (NOT separate fields)
 - `array` with `item_fields` for repeating content (NOT `json`)
-- Do NOT add SEO fields — use the built-in `seo` column
+- Do NOT add SEO fields to models — use `--seo` on entry create/update instead (stored in the built-in `seo` column)
 
 ### Step 3: Create Content Entry (CLI ONLY)
 ```bash
-npx tsx src/cli/index.ts entries create --schema cms_<client> --model <api_id> --title "<Page Name>" --fields /tmp/<page>-data.json --status published
+npx tsx src/cli/index.ts entries create --schema cms_<client> --model <api_id> --title "<Page Name>" --fields /tmp/<page>-data.json --seo /tmp/<page>-seo.json --status published
 ```
 - Exact content from the live site
 - Live site URLs for images
 - Button values: `{"text": "Learn More", "url": "/contact"}`
 - Rich text wrapped in `<p>` tags
-- SEO goes in `seo` column, not `fields`
+- SEO goes in `--seo` flag, not in `--fields` — it's a separate column on the entry
+- `--seo` accepts inline JSON or a file path. Valid keys: `metaTitle`, `metaDescription`, `ogImage`, `ogTitle`, `ogDescription`, `canonicalUrl`, `noIndex`, `structuredData`
+- On update, `--seo` **merges** with existing values (same as `--fields`) — you can update individual SEO properties without losing the rest
 
 ### Step 4: Enable Test Mode
 ```bash
@@ -311,7 +313,8 @@ export SUPABASE_SERVICE_ROLE_KEY=<your-key>
 
 Commands:
 npx tsx src/cli/index.ts models create --schema <schema> --name '<Name>' --api-id <id> --fields /tmp/<file>.json
-npx tsx src/cli/index.ts entries create --schema <schema> --model <api_id> --title '<Title>' --fields /tmp/<file>.json --status published
+npx tsx src/cli/index.ts entries create --schema <schema> --model <api_id> --title '<Title>' --fields /tmp/<file>.json --seo '{"metaTitle":"...","metaDescription":"..."}' --status published
+npx tsx src/cli/index.ts entries update --schema <schema> --id <uuid> --fields /tmp/<file>.json --seo '{"metaTitle":"..."}'
 npx tsx src/cli/index.ts entries test-on --schema <schema> --id <entry-uuid>
 npx tsx src/cli/index.ts entries test-off --schema <schema> --id <entry-uuid>
 
@@ -393,7 +396,7 @@ All migrations are idempotent (safe to run multiple times). The `init` command c
 - **`@source` path** — relative to CSS file, not project root
 - **Field order in models** — clients see fields in the order defined
 - **CSS background images** — use CSS custom property pattern, not hardcoded
-- **SEO goes in `seo` column** — not as model fields
+- **SEO goes in `--seo` flag** — not as model fields. Use `--seo` on `entries create` / `entries update`
 - **Init runs all migrations** — new schemas are always fully configured
 - **PostgREST returns empty?** — run `verify` first. Usually missing `service_role` grants or schema not exposed
 - **Something broken after setup?** — `bullfinch-cms verify --schema cms_xxx` is always the first troubleshooting step

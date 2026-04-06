@@ -779,13 +779,17 @@ Models are referenced by `api_identifier` (e.g. `blog_post`), not UUID. The `--f
 npx @bullfinch/cms entries list --schema cms_acme --model blog_post [--status published] [--limit 50]
 npx @bullfinch/cms entries get --schema cms_acme --id <uuid>
 npx @bullfinch/cms entries create --schema cms_acme --model blog_post \
-  --title "My Post" --fields '{"body":"<p>Hello world</p>"}'
+  --title "My Post" --fields '{"body":"<p>Hello world</p>"}' \
+  --seo '{"metaTitle":"My Post","metaDescription":"A great post"}'
 npx @bullfinch/cms entries update --schema cms_acme --id <uuid> \
-  --title "Updated Title" --fields '{"body":"<p>New content</p>"}'
+  --title "Updated Title" --fields '{"body":"<p>New content</p>"}' \
+  --seo '{"metaTitle":"Updated Title"}'
 npx @bullfinch/cms entries delete --schema cms_acme --id <uuid>
 npx @bullfinch/cms entries publish --schema cms_acme --id <uuid>
 npx @bullfinch/cms entries unpublish --schema cms_acme --id <uuid>
 ```
+
+The `--seo` flag accepts inline JSON or a file path. Valid keys: `metaTitle`, `metaDescription`, `ogImage`, `ogTitle`, `ogDescription`, `canonicalUrl`, `noIndex`, `structuredData`. On update, SEO data is **merged** with existing values — you can update individual fields without losing the rest.
 
 ### `media` — Manage uploaded files
 
@@ -954,7 +958,8 @@ cat > /tmp/data.json << 'EOF'
   "hero_button": {"text": "Get Started", "url": "/contact"}
 }
 EOF
-npx @bullfinch/cms entries create --schema cms_acme --model homepage --title "Home" --fields /tmp/data.json --status published
+npx @bullfinch/cms entries create --schema cms_acme --model homepage --title "Home" --fields /tmp/data.json --status published \
+  --seo '{"metaTitle":"Acme Corp — Home","metaDescription":"Welcome to Acme. We do great work."}'
 
 # 3. Enable test mode for wiring verification
 npx @bullfinch/cms entries test-on --schema cms_acme --id <entry-uuid>
