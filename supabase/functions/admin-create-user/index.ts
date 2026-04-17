@@ -1,9 +1,11 @@
-// supabase/functions/admin-create-user/index.ts
-// Admin-gated user creation. Verifies the caller is an Admin in the given
-// tenant schema, then uses the service role to create an auth user with
-// auto-confirmed email. The tenant's `users` row is populated by the
-// `handle_new_auth_user` trigger via user_metadata.
-
+/**
+ * supabase/functions/admin-create-user/index.ts
+ *
+ * Admin-gated user creation. Verifies the caller is an Admin in the given
+ * tenant schema, then uses the service role to create an auth user with
+ * auto-confirmed email. The tenant's `users` row is populated by the
+ * `handle_new_auth_user` trigger via user_metadata.
+ */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
 const corsHeaders = {
