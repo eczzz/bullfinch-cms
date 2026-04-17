@@ -87,12 +87,29 @@ export function UserEditor({ user, isOpen, onClose, onSave }: UserEditorProps) {
           setSaving(false);
           return;
         }
-        const { data, error: signUpError } = await supabase.auth.signUp({
-          email,
-          password,
-          options: { data: { first_name: firstName, last_name: lastName, role } },
+        const schema = (supabase as any).rest?.schemaName as string | undefined;
+        const { data, error: invokeError } = await supabase.functions.invoke('admin-create-user', {
+          body: {
+            email,
+            password,
+            first_name: firstName,
+            last_name: lastName,
+            phone_number: phoneNumber,
+            role,
+            schema: schema || 'public',
+          },
         });
-        if (signUpError) throw signUpError;
+        if (invokeError) {
+          // supabase-js wraps non-2xx responses; the server's JSON error is on `context`.
+          const ctx: any = (invokeError as any).context;
+          let message = invokeError.message;
+          try {
+            const body = await ctx?.json?.();
+            if (body?.error) message = body.error;
+          } catch {}
+          throw new Error(message);
+        }
+        if (data?.error) throw new Error(data.error);
       }
       onSave();
     } catch (err: any) {

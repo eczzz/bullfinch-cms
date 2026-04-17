@@ -297,6 +297,18 @@ import { createPresignedUrlStorageAdapter } from '@bullfinch/cms';
 >
 ```
 
+### 6. Deploy the `admin-create-user` Edge Function
+
+Inviting users from the CMS admin panel calls a Supabase Edge Function that creates auth users with the service role key. Supabase projects have public signups disabled by default, so this function is required.
+
+```bash
+# From a checkout of @bullfinch/cms
+supabase link --project-ref <your-project-ref>
+supabase functions deploy admin-create-user
+```
+
+No secrets to set — the function uses the automatically-injected `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. It verifies the caller's JWT and checks that they have the `Admin` role in the tenant schema before creating the user. New users are created with `email_confirm: true` (no verification email sent).
+
 ---
 
 ## Adding More Clients
