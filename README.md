@@ -27,6 +27,7 @@ A multi-tenant CMS built on **React** + **Supabase** with schema-based isolation
   - [Hooks](#hooks)
   - [Custom Field Types](#custom-field-types)
   - [Custom Sidebar Items](#custom-sidebar-items)
+  - [Sidebar Sections (reorder, rename, roles)](#sidebar-sections-reorder-rename-roles)
 - [Consuming Content (Frontend)](#consuming-content-frontend)
 - [User Roles](#user-roles)
 - [Offboarding a Client](#offboarding-a-client)
@@ -609,10 +610,75 @@ config={{
       path: '/analytics',
       component: AnalyticsDashboard,
       position: 'bottom', // 'top' (default) or 'bottom'
+      roles: ['Admin', 'Editor'], // optional — hide from other roles
     },
   ],
 }}
 ```
+
+Items appear in a single list after the built-in sections. For full control of
+section order, section labels, or interleaving custom items with built-ins, use
+`sidebarSections` below.
+
+### Sidebar Sections (reorder, rename, roles)
+
+`sidebarSections` replaces the default `Content` / `Settings` layout with one
+you declare. Each section has an `id`, optional `label` (section header), and
+an ordered `items` array. Items can be either a built-in item ID string
+(`'content-models' | 'entries' | 'media' | 'settings'`) or a full custom
+`SidebarItem` object.
+
+```tsx
+import type { SidebarSection } from '@bullfinch/cms';
+
+const sidebarSections: SidebarSection[] = [
+  {
+    id: 'admin',
+    label: 'Admin',
+    items: ['settings'],
+    roles: ['Admin'],                      // entire section hidden for non-admins
+  },
+  {
+    id: 'app',
+    label: 'App',
+    items: [
+      { id: 'classes', label: 'Classes', path: 'classes', component: ClassList },
+      { id: 'students', label: 'Students', path: 'students', component: StudentList,
+        roles: ['Admin', 'Editor'] },      // hide this one item from Viewers
+    ],
+  },
+  {
+    id: 'content',
+    label: 'Content',
+    items: ['content-models', 'entries', 'media'],
+  },
+];
+
+<CMSProvider config={{ sidebarSections }} ... />
+```
+
+Rules:
+- Sections render top-to-bottom in the order you declare them.
+- Omit `label` on a section to render its items with no header.
+- `roles` on a section hides the entire block for users outside the list.
+- `roles` on an item hides just that item. Omit `roles` for "visible to all".
+- A section that ends up with zero visible items (after role filtering) is
+  hidden entirely, header and all.
+- `sidebarItems` (legacy) still works; those items render below all
+  `sidebarSections`.
+
+The default layout, exported as `DEFAULT_SIDEBAR_SECTIONS`, is:
+
+```ts
+[
+  { id: 'content',  label: 'Content',  items: ['content-models', 'entries', 'media'] },
+  { id: 'settings', label: 'Settings', items: ['settings'] },
+]
+```
+
+Role-based visibility is a **UI affordance only** — it hides menu items, it does
+not enforce permissions. Always enforce access at the database layer with
+Supabase RLS policies. See [User Roles](#user-roles).
 
 ---
 

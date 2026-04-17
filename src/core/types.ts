@@ -175,7 +175,19 @@ export interface CMSConfig {
   branding?: Partial<BrandingConfig>;
   storage?: StorageAdapter;
   customFieldTypes?: Record<string, CustomFieldType>;
+  /**
+   * Legacy: custom sidebar items appended after the built-in Settings section.
+   * For full control of sidebar layout (reordering, renaming, role-based
+   * visibility), use `sidebarSections` instead.
+   */
   sidebarItems?: SidebarItem[];
+  /**
+   * Ordered list of sidebar sections. If provided, replaces the default
+   * Content/Settings layout. Each section can contain built-in items
+   * (referenced by ID string) and/or custom items (full SidebarItem objects).
+   * `sidebarItems` (legacy) are still appended below `sidebarSections`.
+   */
+  sidebarSections?: SidebarSection[];
   hooks?: CMSHooks;
   basePath?: string;
 }
@@ -201,6 +213,24 @@ export interface SidebarItem {
   path: string;
   component: React.ComponentType;
   position?: 'top' | 'bottom';
+  /** If set, only users whose role is included will see this item. */
+  roles?: UserRole[];
+}
+
+/** IDs of built-in sidebar items that can be referenced inside `SidebarSection.items`. */
+export type BuiltInSidebarItemId = 'content-models' | 'entries' | 'media' | 'settings';
+
+export interface SidebarSection {
+  id: string;
+  /** Section header label. Omit to render items with no header. */
+  label?: string;
+  /**
+   * Items in render order. Strings refer to built-in items by ID;
+   * objects are custom items (same shape as `SidebarItem`).
+   */
+  items: Array<BuiltInSidebarItemId | SidebarItem>;
+  /** If set, only users whose role is included will see this section. */
+  roles?: UserRole[];
 }
 
 export interface CMSHooks {

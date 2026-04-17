@@ -1,5 +1,5 @@
 import type { SupabaseClient } from '@supabase/supabase-js';
-import type { BrandingConfig, Setting } from './types';
+import type { BrandingConfig, Setting, SidebarSection } from './types';
 
 // ─── Default Branding ───────────────────────────────────────────────────────
 
@@ -8,6 +8,21 @@ export const DEFAULT_BRANDING: BrandingConfig = {
   primaryColor: '#2563eb',
   accentColor: '#7c3aed',
 };
+
+// ─── Default Sidebar Layout ─────────────────────────────────────────────────
+
+export const DEFAULT_SIDEBAR_SECTIONS: SidebarSection[] = [
+  {
+    id: 'content',
+    label: 'Content',
+    items: ['content-models', 'entries', 'media'],
+  },
+  {
+    id: 'settings',
+    label: 'Settings',
+    items: ['settings'],
+  },
+];
 
 // ─── Settings Helpers ───────────────────────────────────────────────────────
 
