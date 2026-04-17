@@ -9,7 +9,23 @@ import { ContentEntryEditor } from './content/ContentEntryEditor';
 import { Media } from './media/Media';
 import { Settings } from './settings/Settings';
 import { useRouter, navigate, routeToPath } from '../core/router';
-import type { CMSRoute } from '../core/types';
+import type { CMSRoute, SidebarItem } from '../core/types';
+
+/**
+ * Look up a custom sidebar item by its `path`. Searches `sidebarSections`
+ * first, then falls back to the legacy `sidebarItems` array.
+ */
+function findCustomItem(
+  config: { sidebarSections?: Array<{ items: Array<string | SidebarItem> }>; sidebarItems?: SidebarItem[] },
+  path: string
+): SidebarItem | undefined {
+  for (const section of config.sidebarSections ?? []) {
+    for (const item of section.items) {
+      if (typeof item !== 'string' && item.path === path) return item;
+    }
+  }
+  return config.sidebarItems?.find((s) => s.path === path);
+}
 
 export function AdminPanel() {
   const { isAuthenticated, isLoading, config } = useCMS();
@@ -61,7 +77,7 @@ export function AdminPanel() {
         return <Settings />;
 
       case 'custom': {
-        const customItem = config.sidebarItems?.find((s) => s.path === route.path);
+        const customItem = findCustomItem(config, route.path);
         if (customItem) {
           const CustomComponent = customItem.component;
           return <CustomComponent />;
