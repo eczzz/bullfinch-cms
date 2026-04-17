@@ -109,8 +109,17 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
       const { data: { session } } = await supabase.auth.getSession();
       if (session) {
         const u = await fetchCurrentUser(supabase);
-        setUser(u);
-        setIsAuthenticated(true);
+        if (!u) {
+          // Session exists in auth.users but the caller isn't a member of
+          // this tenant schema — sign out so stale sessions from other
+          // workspaces can't linger on this one.
+          await supabase.auth.signOut();
+          setUser(null);
+          setIsAuthenticated(false);
+        } else {
+          setUser(u);
+          setIsAuthenticated(true);
+        }
       } else {
         setUser(null);
         setIsAuthenticated(false);
@@ -150,6 +159,14 @@ export function CMSProvider({ supabase, config = {}, children }: CMSProviderProp
   const login = useCallback(async (email: string, password: string) => {
     const { error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+    // The auth.users table is shared across tenants. Gate login on presence
+    // of a row in this tenant's users table so a valid auth session from
+    // another workspace can't sign into this one.
+    const u = await fetchCurrentUser(supabase);
+    if (!u) {
+      await supabase.auth.signOut();
+      throw new Error("You don't have access to this workspace.");
+    }
   }, [supabase]);
 
   const logout = useCallback(async () => {

@@ -1,10 +1,18 @@
 /**
  * supabase/functions/admin-create-user/index.ts
  *
- * Admin-gated user creation. Verifies the caller is an Admin in the given
- * tenant schema, then uses the service role to create an auth user with
- * auto-confirmed email. The tenant's `users` row is populated by the
- * `handle_new_auth_user` trigger via user_metadata.
+ * Admin-gated user creation with per-tenant isolation.
+ *
+ * Flow:
+ *   1. Verify the caller's JWT.
+ *   2. Verify the caller has role = 'Admin' in the requested tenant schema.
+ *   3. Look up whether an auth user with this email already exists.
+ *      - If yes (user belongs to another tenant), reuse the id and skip
+ *        auth.admin.createUser. The supplied password is ignored.
+ *      - If no, create the auth user with email_confirm: true.
+ *   4. Insert a row in {schema}.users with the chosen role. This is the
+ *      only path by which a tenant users row comes into existence — no
+ *      trigger, no client-side insert.
  */
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.49.4';
 
@@ -13,8 +21,6 @@ const corsHeaders = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
-
-type Role = 'Admin' | 'Editor' | 'Viewer';
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -53,18 +59,18 @@ Deno.serve(async (req: Request) => {
     if (password.length < 8) return json({ error: 'Password must be at least 8 characters' }, 400);
     if (!['Admin', 'Editor', 'Viewer'].includes(role)) return json({ error: 'Invalid role' }, 400);
 
-    // 1. Verify caller is authenticated
+    // 1. Verify caller
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
     const { data: { user: caller }, error: authError } = await userClient.auth.getUser();
     if (authError || !caller) return json({ error: 'Unauthorized' }, 401);
 
-    // 2. Verify caller is an Admin in the requested tenant schema
-    const adminClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
+    // 2. Verify caller is Admin in this tenant
+    const tenantClient = createClient(supabaseUrl, supabaseServiceRoleKey, {
       db: { schema },
     });
-    const { data: callerRow, error: roleError } = await adminClient
+    const { data: callerRow, error: roleError } = await tenantClient
       .from('users')
       .select('role')
       .eq('id', caller.id)
@@ -78,31 +84,62 @@ Deno.serve(async (req: Request) => {
       return json({ error: 'Forbidden — admin role required' }, 403);
     }
 
-    // 3. Create the auth user (auto-confirmed, no email sent)
-    const { data: created, error: createError } = await adminClient.auth.admin.createUser({
+    // 3. Look up or create the auth user
+    const publicClient = createClient(supabaseUrl, supabaseServiceRoleKey);
+
+    const { data: existingId, error: lookupError } = await publicClient
+      .rpc('find_auth_user_id', { p_email: email });
+
+    if (lookupError) {
+      console.error('find_auth_user_id failed:', lookupError);
+      return json({ error: 'Failed to look up existing user' }, 500);
+    }
+
+    let userId: string;
+    if (existingId) {
+      userId = existingId as string;
+    } else {
+      const { data: created, error: createError } = await publicClient.auth.admin.createUser({
+        email,
+        password,
+        email_confirm: true,
+      });
+      if (createError || !created.user) {
+        const msg = createError?.message || 'Failed to create auth user';
+        const status = /already|registered|exists/i.test(msg) ? 409 : 400;
+        return json({ error: msg }, status);
+      }
+      userId = created.user.id;
+    }
+
+    // 4. Ensure the tenant users row exists with the chosen role.
+    //    If they were already a member of this tenant, block the invite —
+    //    the admin should be editing, not re-inviting.
+    const { data: alreadyMember } = await tenantClient
+      .from('users')
+      .select('id')
+      .eq('id', userId)
+      .maybeSingle();
+
+    if (alreadyMember) {
+      return json({ error: 'User is already a member of this workspace' }, 409);
+    }
+
+    const { error: insertError } = await tenantClient.from('users').insert({
+      id: userId,
       email,
-      password,
-      email_confirm: true,
-      user_metadata: { first_name, last_name, role: role as Role },
+      first_name,
+      last_name,
+      phone_number,
+      role,
     });
 
-    if (createError || !created.user) {
-      const msg = createError?.message || 'Failed to create user';
-      const status = /already|registered|exists/i.test(msg) ? 409 : 400;
-      return json({ error: msg }, status);
+    if (insertError) {
+      console.error('tenant users insert failed:', insertError);
+      return json({ error: insertError.message || 'Failed to add user to workspace' }, 500);
     }
 
-    // 4. phone_number isn't part of user_metadata / trigger, so patch the row.
-    //    The trigger already inserted the users row with first_name/last_name/role.
-    if (phone_number) {
-      const { error: updateError } = await adminClient
-        .from('users')
-        .update({ phone_number })
-        .eq('id', created.user.id);
-      if (updateError) console.error('phone_number patch failed:', updateError);
-    }
-
-    return json({ user: { id: created.user.id, email: created.user.email } }, 201);
+    return json({ user: { id: userId, email } }, 201);
   } catch (err) {
     console.error('admin-create-user error:', err);
     return json({ error: 'Internal server error' }, 500);
