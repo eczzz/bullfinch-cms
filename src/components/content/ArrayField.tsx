@@ -1,5 +1,5 @@
 import React from 'react';
-import { Plus, X, GripVertical } from 'lucide-react';
+import { Plus, X, ChevronUp, ChevronDown } from 'lucide-react';
 import { DynamicField } from './DynamicField';
 import type { FieldDefinition } from '../../core/types';
 
@@ -22,6 +22,14 @@ export function ArrayField({ itemFields, value, onChange }: ArrayFieldProps) {
     onChange(value.filter((_, i) => i !== index));
   };
 
+  const moveItem = (from: number, to: number) => {
+    if (to < 0 || to >= value.length) return;
+    const updated = [...value];
+    const [item] = updated.splice(from, 1);
+    updated.splice(to, 0, item);
+    onChange(updated);
+  };
+
   const updateItem = (index: number, fieldId: string, fieldValue: unknown) => {
     const updated = [...value];
     updated[index] = { ...updated[index], [fieldId]: fieldValue };
@@ -38,7 +46,28 @@ export function ArrayField({ itemFields, value, onChange }: ArrayFieldProps) {
           {/* Item Header */}
           <div className="flex items-center justify-between px-4 py-2.5 border-b border-gray-100 bg-gray-50/50">
             <div className="flex items-center gap-2">
-              <GripVertical className="w-4 h-4 text-gray-300 cursor-grab" />
+              <div className="flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => moveItem(index, index - 1)}
+                  disabled={index === 0}
+                  className="inline-flex items-center justify-center w-5 h-3.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  title="Move up"
+                  aria-label="Move item up"
+                >
+                  <ChevronUp className="w-3 h-3" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => moveItem(index, index + 1)}
+                  disabled={index === value.length - 1}
+                  className="inline-flex items-center justify-center w-5 h-3.5 rounded text-gray-400 hover:text-gray-700 hover:bg-gray-100 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+                  title="Move down"
+                  aria-label="Move item down"
+                >
+                  <ChevronDown className="w-3 h-3" />
+                </button>
+              </div>
               <span className="inline-flex items-center justify-center w-5 h-5 rounded bg-gray-200 text-[10px] font-semibold text-gray-600">
                 {index + 1}
               </span>
