@@ -97,15 +97,31 @@ npx tsx src/cli/index.ts entries test-off --schema cms_<client> --id <entry-uuid
 ```
 
 ### What Test Mode Does
-- `short_text`, `slug`: appends ` 111` to value
+- `short_text`: appends ` 111` to value
 - `long_text`: appends ` 111` to value
 - `rich_text`: appends `<p>111</p>` to value
 - `email`: replaces with `test111@example.com`
-- `url`: left unchanged (breaking URLs doesn't help)
+- `url`, `slug`: left unchanged — they're identifiers, not editorial copy; breaking them breaks routing and links
 - `media`: replaces with `https://placehold.co/800x600/e2e8f0/64748b?text=<Field+Name>`
 - `button`: appends ` 111` to text, keeps URL
 - `array`: recurses into each item with same rules
 - `number`, `boolean`, `date`, `datetime`, `color`, `select`, `reference`: left unchanged
+
+### Opting a Field Out of Test Mode
+Set `options.test_mode_skip: true` on any field definition to skip it entirely on `test-on`. Use it for fields whose value is structural rather than editorial:
+- A `short_text` being used as an identifier (e.g. `external_ref_id`)
+- A `media` field always pointing at a brand asset that shouldn't render as `placehold.co` during test
+- Any field where appending ` 111` would break wiring rather than reveal it
+
+Example field definition:
+```json
+{
+  "name": "External Ref",
+  "api_identifier": "external_ref",
+  "field_type": "short_text",
+  "options": { "test_mode_skip": true }
+}
+```
 
 ### Admin UI
 - Toggle switch in "Developer Tools" sidebar card (entry editor)

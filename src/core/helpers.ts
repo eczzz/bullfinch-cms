@@ -178,9 +178,14 @@ export function generateTestFields(
     const key = field.api_identifier;
     const value = currentFields[key];
 
+    // Per-field opt-out. Useful for fields whose value is structural
+    // (an identifier, brand asset, etc.) rather than editorial copy.
+    if (field.options?.test_mode_skip === true) {
+      continue;
+    }
+
     switch (field.field_type) {
       case 'short_text':
-      case 'slug':
         result[key] = value && typeof value === 'string' ? `${value} 111` : 'test 111';
         break;
 
@@ -197,7 +202,9 @@ export function generateTestFields(
         break;
 
       case 'url':
-        // Leave unchanged — breaking URLs doesn't help
+      case 'slug':
+        // Identifiers, not editorial copy — leave unchanged so routes and
+        // links keep resolving while the rest of the page is in test mode.
         break;
 
       case 'media':

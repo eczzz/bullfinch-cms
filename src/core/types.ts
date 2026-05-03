@@ -44,6 +44,7 @@ export interface FieldOptions {
   reference_model_id?: string;
   multiple?: boolean;
   accept?: string;
+  test_mode_skip?: boolean;
   [key: string]: unknown;
 }
 
