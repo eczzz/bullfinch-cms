@@ -43,9 +43,9 @@ function parsePath(pathname: string): CMSRoute {
     if (parts[1] === 'password') return { page: 'change-password' };
   }
 
-  // /custom/:path
-  if (parts[0] === 'custom' && parts.length >= 2) {
-    return { page: 'custom', path: parts.slice(1).join('/') };
+  // /admin/:path (also accept legacy /custom/:path for backward-compat)
+  if ((parts[0] === 'admin' || parts[0] === 'custom') && parts.length >= 2) {
+    return { page: 'admin', path: parts.slice(1).join('/') };
   }
 
   // Fallback
@@ -76,8 +76,8 @@ export function routeToPath(route: CMSRoute): string {
       return '/settings/users';
     case 'change-password':
       return '/settings/password';
-    case 'custom':
-      return `/custom/${route.path}`;
+    case 'admin':
+      return `/admin/${route.path}`;
     default:
       return '/models';
   }

@@ -108,13 +108,13 @@ function renderBuiltIn(id: BuiltInSidebarItemId, ctx: BuiltInContext): React.Rea
 function renderCustomItem(item: SidebarItem, ctx: BuiltInContext): React.ReactElement {
   const { currentRoute, collapsed, accentColor, sidebarText, sidebarBg } = ctx;
   const active =
-    currentRoute.page === 'custom' &&
-    (currentRoute as Extract<CMSRoute, { page: 'custom' }>).path === item.path;
+    currentRoute.page === 'admin' &&
+    (currentRoute as Extract<CMSRoute, { page: 'admin' }>).path === item.path;
 
   return (
     <NavLink
       key={item.id}
-      href={routeToPath({ page: 'custom', path: item.path })}
+      href={routeToPath({ page: 'admin', path: item.path })}
       active={active}
       icon={() => <span className="w-4 h-4 flex items-center justify-center text-xs">{item.icon || '📄'}</span>}
       label={item.label}
