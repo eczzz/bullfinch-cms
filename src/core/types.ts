@@ -268,7 +268,7 @@ export type CMSRoute =
   | { page: 'settings' }
   | { page: 'users' }
   | { page: 'change-password' }
-  | { page: 'custom'; path: string };
+  | { page: 'admin'; path: string };
 
 // ─── File Validation ────────────────────────────────────────────────────────
 

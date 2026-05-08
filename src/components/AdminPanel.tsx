@@ -76,7 +76,7 @@ export function AdminPanel() {
       case 'change-password':
         return <Settings />;
 
-      case 'custom': {
+      case 'admin': {
         const customItem = findCustomItem(config, route.path);
         if (customItem) {
           const CustomComponent = customItem.component;
