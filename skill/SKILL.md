@@ -150,7 +150,7 @@ npx tsx src/cli/index.ts verify --schema cms_<client>
 - ✅ PostgREST schema exposure (if `SUPABASE_ACCESS_TOKEN` is set)
 - ✅ `exec_sql` and `exec_sql_read` helper functions exist
 - ✅ Auto-grant event trigger exists for the schema
-- ✅ All migrations applied (001–006)
+- ✅ All migrations applied (001–007)
 
 Exit code 0 = all pass, 1 = failures. Use `--json` for machine-readable output.
 
@@ -164,9 +164,10 @@ Exit code 0 = all pass, 1 = failures. Use `--json` for machine-readable output.
    - `SUPABASE_SERVICE_ROLE_KEY` (required)
    - `SUPABASE_ACCESS_TOKEN` (optional — enables auto-exposing schema via PostgREST Management API)
 3. **Init schema:** `npx tsx src/cli/index.ts init --schema cms_<client> --name "<Client Name>"`
-   - Init automatically runs ALL migrations (001–006) — new schemas are fully configured
+   - Init automatically runs ALL migrations (001–007) — new schemas are fully configured
    - Migration 005 installs an event trigger that auto-grants permissions on any future tables
    - Migration 006 creates `exec_sql` and `exec_sql_read` helpers — no manual SQL Editor step
+   - Migration 007 adds anon SELECT policies on content_models / content_entries / media so the frontend can read via the anon key (without these the frontend gets `[]` on every query)
    - Init chains into `verify` automatically — you get a green/red checklist immediately
 4. **Scaffold client CMS app:**
    ```bash
@@ -185,15 +186,10 @@ Exit code 0 = all pass, 1 = failures. Use `--json` for machine-readable output.
    ```bash
    npx tsx src/cli/index.ts verify --schema cms_<client>
    ```
-6. **Add RLS policies** for public frontend reads:
-   ```sql
-   CREATE POLICY <name>_public_select ON cms_<schema>.content_models FOR SELECT TO anon USING (true);
-   CREATE POLICY <name>_public_select ON cms_<schema>.content_entries FOR SELECT TO anon USING (status = 'published');
-   ```
 
 ### Updating Existing Client Schemas
 
-To backfill new migrations (service_role grants, event trigger, exec_sql helpers) on existing schemas:
+To backfill new migrations (service_role grants, event trigger, exec_sql helpers, public-read policies) on existing schemas:
 ```bash
 npx tsx src/cli/index.ts migrate --schema cms_<client>
 npx tsx src/cli/index.ts verify --schema cms_<client>
@@ -402,6 +398,7 @@ Field order = grouped by section, in page reading order.
 | 004_grant_roles | Re-apply grants (anon, authenticated, service_role) |
 | 005_auto_grant_event_trigger | Event trigger that auto-grants on any new table in the schema |
 | 006_exec_sql_helpers | Creates exec_sql + exec_sql_read in public schema |
+| 007_public_read_policies | anon SELECT on content_models / content_entries (published only) / media — required for frontend fetches via the anon key |
 
 All migrations are idempotent (safe to run multiple times). The `init` command chains all of them automatically.
 
