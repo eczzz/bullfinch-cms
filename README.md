@@ -1110,7 +1110,8 @@ npx @bullfinch/cms entries test-off --schema cms_acme --id <entry-uuid>
 │   │       ├── 003_test_mode.sql           # Add test_mode + _snapshot columns
 │   │       ├── 004_grant_roles.sql         # Grant schema access to roles
 │   │       ├── 005_auto_grant_event_trigger.sql # Auto-grant on new tables
-│   │       └── 006_exec_sql_helpers.sql    # exec_sql / exec_sql_read functions
+│   │       ├── 006_exec_sql_helpers.sql    # exec_sql / exec_sql_read functions
+│   │       └── 007_public_read_policies.sql # anon SELECT on models/entries/media
 │   └── cli/
 │       └── index.ts                        # CLI entry point
 ├── package.json
