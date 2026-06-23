@@ -1372,14 +1372,19 @@ async function getR2Config(supabase: SupabaseClient, schema: string): Promise<R2
   };
 }
 
-function generateR2Key(ext: string, originalName?: string): string {
+function generateR2Key(ext: string, originalName?: string, prefix?: string): string {
+  // Folder under which the object is stored. Defaults to "uploads"; a caller
+  // can pass a prefix (e.g. "case-studies/acme") to preserve sub-paths and
+  // avoid basename collisions across folders.
+  const folder = (prefix && prefix.trim() ? prefix : 'uploads')
+    .replace(/^\/+|\/+$/g, '');
   if (originalName) {
     // Preserve original filename — sanitize but keep SEO-friendly name
     const nameWithoutExt = originalName.replace(/\.[^.]+$/, '');
     const sanitized = nameWithoutExt.replace(/[^a-zA-Z0-9_-]/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '').toLowerCase();
-    return `uploads/${sanitized}.${ext}`;
+    return `${folder}/${sanitized}.${ext}`;
   }
-  return `uploads/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+  return `${folder}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
 }
 
 async function uploadToR2(
@@ -1431,9 +1436,11 @@ async function cmdMediaUpload(flags: Record<string, string | true>): Promise<voi
   const mimeType = EXT_TO_MIME[ext];
   if (!mimeType) die(`Unknown file extension: .${ext}`);
 
+  const prefix = typeof flags.prefix === 'string' ? flags.prefix : undefined;
+
   const supabase = getSupabase(schema);
   const r2 = await getR2Config(supabase, schema);
-  const key = generateR2Key(ext, filename);
+  const key = generateR2Key(ext, filename, prefix);
   const url = await uploadToR2(r2, key, fileBuffer, mimeType);
 
   const record = await insertMediaRecord(supabase, filename, url, mimeType, fileBuffer.length);
@@ -1720,6 +1727,8 @@ Subcommands:
   import   --schema <name> --url <url>         Fetch a URL and upload to R2
 
 Flags:
+  --prefix  R2 folder for upload (default "uploads"); preserves sub-paths
+            and avoids basename collisions, e.g. --prefix case-studies/acme
   --json    Output in JSON format
 `.trim();
 
