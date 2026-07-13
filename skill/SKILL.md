@@ -186,6 +186,32 @@ Exit code 0 = all pass, 1 = failures. Use `--json` for machine-readable output.
    ```bash
    npx tsx src/cli/index.ts verify --schema cms_<client>
    ```
+6. **Media storage (Cloudflare R2):** built into the CMS — see the next section. Enter creds in Settings → Integrations (or via `settings set`). Do NOT write any storage code.
+
+## Media Storage — Built-in Cloudflare R2 Integration
+
+🔴 **The CMS has R2 support built in. Never wire a `storage` prop, never write presign endpoints (no Netlify functions, no custom backends).** A `storage` prop on `CMSProvider` silently OVERRIDES and disables the built-in integration.
+
+How it works:
+- R2 credentials live per-tenant in the schema's `settings` table under five keys: `integration_r2_account_id`, `integration_r2_access_key_id`, `integration_r2_secret_access_key`, `integration_r2_bucket_name`, `integration_r2_public_url`
+- Entered by a human in **Settings → Integrations** in the admin panel, or set via CLI:
+  ```bash
+  npx tsx src/cli/index.ts settings set --schema cms_<client> --key integration_r2_account_id --value <account-id>
+  # ...repeat for the other four integration_r2_* keys
+  ```
+- When all five exist (and no `storage` prop is passed), `CMSProvider` auto-enables R2 uploads
+- Presigning happens server-side in the `r2-presign` Supabase Edge Function (JWT-verified; creds never reach the browser); "Import from URL" uses `r2-import`
+- Edge functions deploy **once per Supabase project** (they serve all tenants): `supabase functions deploy r2-presign` / `r2-import` / `admin-create-user`
+- The same Integrations tab also takes a Netlify build hook URL (`integration_netlify_build_hook`) for triggering rebuilds
+
+CLI media commands (use the tenant's stored R2 creds):
+```bash
+npx tsx src/cli/index.ts media upload --schema cms_<client> --file ./photo.webp [--prefix case-studies/acme]
+npx tsx src/cli/index.ts media import --schema cms_<client> --url https://example.com/photo.webp
+```
+`--prefix` sets the R2 folder (default `uploads`), preserves sub-paths, avoids basename collisions.
+
+Troubleshooting uploads: all five `integration_r2_*` settings present? Edge functions deployed (`supabase functions list`)? Bucket CORS allows `PUT` from the admin origin? No `storage` prop overriding the integration?
 
 ### Updating Existing Client Schemas
 
@@ -404,6 +430,7 @@ All migrations are idempotent (safe to run multiple times). The `init` command c
 
 ## Common Gotchas
 
+- **Media storage is built in** — R2 creds go in Settings → Integrations (`integration_r2_*` settings keys); a `storage` prop on CMSProvider overrides and disables it. Never build presign endpoints.
 - **RLS blocks anon reads** — always add public SELECT policies
 - **Dual React** — fix with `resolve.dedupe` in Vite config
 - **`@source` path** — relative to CSS file, not project root

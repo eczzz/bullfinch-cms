@@ -252,11 +252,30 @@ npm run dev
 
 Visit `http://localhost:5173`, log in with the admin user you created, and you're in. No wizard. Just the dashboard.
 
-### 5. Configure Storage
+### 5. Configure Media Storage (built-in Cloudflare R2 integration)
 
-Media uploads need a storage backend. Two options:
+The CMS ships with a **built-in Cloudflare R2 integration** — no storage code in your app. This is the standard setup:
 
-#### Option A: Supabase Storage (simplest)
+1. Deploy the R2 edge functions once per Supabase project (see step 6)
+2. Log in to the admin panel → **Settings → Integrations**
+3. Enter the five R2 values: Account ID, Access Key ID, Secret Access Key, Bucket Name, Public URL
+
+Credentials are stored per-tenant in the schema's `settings` table (keys `integration_r2_account_id`, `integration_r2_access_key_id`, `integration_r2_secret_access_key`, `integration_r2_bucket_name`, `integration_r2_public_url`). When all five are present, `CMSProvider` automatically enables R2 media uploads: presigning happens server-side in the `r2-presign` edge function (which verifies the caller's JWT and reads the creds with the service role), and "Import from URL" goes through `r2-import`.
+
+They can also be set via the CLI:
+
+```bash
+npx @bullfinch/cms settings set --schema cms_acme --key integration_r2_account_id --value <account-id>
+# ...repeat for the other four integration_r2_* keys
+```
+
+> ⚠️ **Passing a `storage` prop to `CMSProvider` overrides and disables the built-in integration.** Only pass one if you deliberately want a different backend (options below).
+
+The Integrations tab also accepts a **Netlify build hook URL** (`integration_netlify_build_hook`) so editors can trigger a site rebuild from the admin panel.
+
+#### Alternative storage adapters (only if not using the built-in R2 integration)
+
+#### Option A: Supabase Storage
 
 1. In Supabase Dashboard → Storage → Create Bucket → Name it `media`, make it **public**
 2. In your app:
@@ -297,17 +316,25 @@ import { createPresignedUrlStorageAdapter } from '@bullfinch/cms';
 >
 ```
 
-### 6. Deploy the `admin-create-user` Edge Function
+### 6. Deploy the Edge Functions
 
-Inviting users from the CMS admin panel calls a Supabase Edge Function that creates auth users with the service role key. Supabase projects have public signups disabled by default, so this function is required.
+Three edge functions ship in `supabase/functions/` and are deployed **once per Supabase project** (they serve all tenant schemas):
+
+| Function | Purpose |
+|----------|---------|
+| `admin-create-user` | Creates auth users when admins invite from the panel (public signups are disabled by default) |
+| `r2-presign` | Generates presigned R2 PUT URLs for media uploads (built-in R2 integration) |
+| `r2-import` | Fetches a remote URL server-side and uploads it to R2 ("Import from URL") |
 
 ```bash
 # From a checkout of @bullfinch/cms
 supabase link --project-ref <your-project-ref>
 supabase functions deploy admin-create-user
+supabase functions deploy r2-presign
+supabase functions deploy r2-import
 ```
 
-No secrets to set — the function uses the automatically-injected `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. It verifies the caller's JWT and checks that they have the `Admin` role in the tenant schema before creating the user. New users are created with `email_confirm: true` (no verification email sent).
+No secrets to set — the functions use the automatically-injected `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. All of them verify the caller's JWT; `admin-create-user` additionally checks that the caller has the `Admin` role in the tenant schema before creating the user (new users get `email_confirm: true`, no verification email sent). The R2 functions read the tenant's `integration_r2_*` settings server-side — R2 credentials never reach the browser.
 
 ---
 
@@ -507,6 +534,8 @@ config={{
 > **Note:** Branding can also be configured from the Settings → Branding panel in the UI. Database settings override config props. The accent color drives all interactive elements: buttons, active sidebar items, settings tabs, toggles, and selection indicators.
 
 ### Storage Adapters
+
+**You usually don't need one.** With the built-in R2 integration (Settings → Integrations), `CMSProvider` creates its own adapter automatically when the `integration_r2_*` settings exist — and an explicit `storage` prop **overrides and disables** that integration. Only pass an adapter to use a different backend.
 
 Two built-in adapters:
 
@@ -874,7 +903,11 @@ The `--seo` flag accepts inline JSON or a file path. Valid keys: `metaTitle`, `m
 ```bash
 npx @bullfinch/cms media list --schema cms_acme [--limit 50]
 npx @bullfinch/cms media delete --schema cms_acme --id <uuid>
+npx @bullfinch/cms media upload --schema cms_acme --file ./photo.webp [--prefix case-studies/acme]
+npx @bullfinch/cms media import --schema cms_acme --url https://example.com/photo.webp
 ```
+
+`upload` and `import` push to R2 using the tenant's `integration_r2_*` settings. `--prefix` sets the R2 folder (default `uploads`); it preserves sub-paths and avoids basename collisions.
 
 ### `settings` — Key/value configuration
 
@@ -1208,9 +1241,11 @@ content: [
 
 ### Media uploads failing
 
-- **Supabase Storage:** Make sure the bucket exists and is set to public
-- **R2/S3:** Verify your presigned URL endpoint is returning the correct format: `{ presignedUrl, publicUrl, filename }`
-- Check browser console for CORS errors — your storage provider may need CORS configured
+- **Built-in R2 integration:** check all five `integration_r2_*` values are saved in Settings → Integrations, and that `r2-presign` / `r2-import` are deployed (`supabase functions list`)
+- The browser PUTs directly to R2 with the presigned URL — the bucket needs a CORS policy allowing `PUT` from the admin panel's origin
+- **Do not pass a `storage` prop** while using the built-in integration — it silently overrides it
+- **Supabase Storage adapter:** make sure the bucket exists and is set to public
+- **Custom presigned adapter:** verify your endpoint returns `{ presignedUrl, publicUrl, filename }`
 
 ### Multiple schemas sharing auth triggers
 
