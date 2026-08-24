@@ -146,15 +146,15 @@ After this, `npx @bullfinch/cms init` will work automatically for all future cli
 
 ### 3. Create an Admin User
 
-The CMS uses Supabase Auth. Create the first admin user:
+The CMS uses Supabase Auth. Auth users are shared across the whole Supabase project, but access to a tenant is granted only by a row in that tenant's `users` table — migration `007_tenant_isolation` removed the old trigger that auto-created these rows (see [Tenant isolation and membership leakage](#tenant-isolation-and-membership-leakage)). Bootstrapping the first admin therefore takes two steps: create the auth user, then insert their membership row.
 
-**Option A: Supabase Dashboard**
-1. Go to Authentication → Users → Add User
-2. Enter email and password
-3. The trigger in the migration will auto-create a user record with `Viewer` role
-4. Promote to Admin via SQL Editor:
+**Option A: Supabase Dashboard + SQL Editor**
+1. Go to Authentication → Users → Add User, enter email and password
+2. Insert the membership row with the `Admin` role:
    ```sql
-   UPDATE cms_basecamp.users SET role = 'Admin' WHERE email = 'admin@example.com';
+   INSERT INTO cms_basecamp.users (id, email, first_name, last_name, role)
+   SELECT id, email, 'Admin', 'User', 'Admin'
+   FROM auth.users WHERE email = 'admin@example.com';
    ```
 
 **Option B: Via Supabase client (in a script)**
@@ -166,14 +166,22 @@ const supabase = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
   auth: { autoRefreshToken: false, persistSession: false },
 });
 
-// Create auth user
+// Create auth user, then the tenant membership row
 const { data, error } = await supabase.auth.admin.createUser({
   email: 'admin@basecampouray.com',
   password: 'secure-password-here',
   email_confirm: true,
-  user_metadata: { first_name: 'Admin', last_name: 'User', role: 'Admin' },
+});
+await supabase.from('users').insert({
+  id: data.user!.id,
+  email: 'admin@basecampouray.com',
+  first_name: 'Admin',
+  last_name: 'User',
+  role: 'Admin',
 });
 ```
+
+Every user after the first is invited from the admin panel (Settings → Users) — the invite goes through the `admin-create-user` edge function, which checks that the inviter is an Admin in the tenant. Public signups stay disabled on the Supabase project; never enable them to work around an invite error (see ["Signups not allowed for this instance"](#signups-not-allowed-for-this-instance)).
 
 ### 4. Create a Client App
 
@@ -333,6 +341,8 @@ supabase functions deploy admin-create-user
 supabase functions deploy r2-presign
 supabase functions deploy r2-import
 ```
+
+> **Prerequisite for `admin-create-user`:** migration `007_tenant_isolation` must be applied to **every** tenant schema in the project. The function depends on `public.find_auth_user_id()` (created by that migration), and any schema still carrying the legacy auto-provision trigger will add its own membership row for every user invited from *any* tenant — see [Tenant isolation and membership leakage](#tenant-isolation-and-membership-leakage).
 
 No secrets to set — the functions use the automatically-injected `SUPABASE_URL`, `SUPABASE_ANON_KEY`, and `SUPABASE_SERVICE_ROLE_KEY`. All of them verify the caller's JWT; `admin-create-user` additionally checks that the caller has the `Admin` role in the tenant schema before creating the user (new users get `email_confirm: true`, no verification email sent). The R2 functions read the tenant's `integration_r2_*` settings server-side — R2 credentials never reach the browser.
 
@@ -977,7 +987,8 @@ Runs a checklist of health checks against an existing schema and prints pass/fai
 - PostgREST schema exposure (requires `SUPABASE_ACCESS_TOKEN`)
 - `exec_sql` / `exec_sql_read` functions exist
 - Event trigger for auto-granting permissions exists
-- All migrations applied
+- All migrations applied (including `007_tenant_isolation`)
+- Tenant isolation: legacy `auth.users` auto-provision trigger removed
 
 Exit code 0 if all pass, 1 if any fail. Useful in CI or after init to confirm everything is wired correctly.
 
@@ -996,6 +1007,8 @@ npx @bullfinch/cms migrate --schema cms_acme
 ```
 
 Applies any pending migrations. Safe to run multiple times (idempotent). The `init` command automatically chains all migrations, so new schemas are always fully configured.
+
+**Migrations are per-schema, and the Supabase project is shared.** After updating bullfinch-cms, run `migrate` (then `verify`) against **every** tenant schema in the project — a schema you skip silently keeps the old behavior, which for security migrations like `007_tenant_isolation` means one stale tenant undermines all the others. When the update also touches an edge function, redeploy it (`supabase functions deploy <name>`); when it touches the React package, rebuild and redeploy every client app (apps bundle `@bullfinch/cms` at build time, so database-side fixes don't reach the admin UI until each app is rebuilt).
 
 ### `export` — Generate export command for offboarding
 
@@ -1247,9 +1260,40 @@ content: [
 - **Supabase Storage adapter:** make sure the bucket exists and is set to public
 - **Custom presigned adapter:** verify your endpoint returns `{ presignedUrl, publicUrl, filename }`
 
-### Multiple schemas sharing auth triggers
+### Tenant isolation and membership leakage
 
-Each schema creates its own `on_auth_user_created_SCHEMA_NAME` trigger. This means when a new Supabase Auth user signs up, a user record is created in **every** client schema. This is usually fine (the record is harmless), but if you want per-client user isolation, create users via the admin panel instead of self-signup.
+Before migration `007_tenant_isolation`, each schema installed an `on_auth_user_created_<schema>` trigger on `auth.users` that inserted a users row into that schema for **every** new auth user in the project. The record is not harmless: a users row plus valid credentials *is* tenant access, so inviting someone to one workspace silently granted them Viewer access to every other workspace. `007_tenant_isolation` drops the trigger and the `users_insert_self` RLS policy; membership rows are now created only by the `admin-create-user` edge function.
+
+The migration is **per-schema** — applying it to one tenant does not protect the others. A single stale schema keeps granting itself a member on every invite from any tenant. To audit and remediate:
+
+1. **Find stale schemas** (any rows returned = stale):
+   ```sql
+   SELECT t.tgname FROM pg_trigger t
+   JOIN pg_class c ON c.oid = t.tgrelid
+   JOIN pg_namespace n ON n.oid = c.relnamespace
+   WHERE n.nspname = 'auth' AND c.relname = 'users'
+     AND t.tgname LIKE 'on_auth_user_created_%';
+   ```
+2. **Migrate every stale schema**, then verify (verify includes a tenant-isolation check):
+   ```bash
+   npx @bullfinch/cms migrate --schema cms_<client>
+   npx @bullfinch/cms verify --schema cms_<client>
+   ```
+   If `migrate` fails with `must be owner of relation users` or `permission denied to create event trigger`: the CLI's `exec_sql` helper can't alter triggers on `auth.users` or create event triggers. Paste the failing migration file (with `SCHEMA_NAME` replaced by the schema name) into the Supabase SQL Editor — it runs with sufficient privileges — then re-run `verify`.
+3. **Audit each schema's `users` table for leaked members** — rows the tenant's admins never invited. Trigger-created rows typically have empty names, `Viewer` role, and a `created_at` matching another tenant's invite:
+   ```sql
+   SELECT id, email, role, first_name, last_name, created_at
+   FROM cms_<client>.users ORDER BY created_at DESC;
+   ```
+4. **Delete rows that don't belong:**
+   ```sql
+   DELETE FROM cms_<client>.users WHERE id = '<uuid>';
+   ```
+   This only revokes membership in that tenant — the auth user and their legitimate memberships in other tenants are untouched.
+
+### "Signups not allowed for this instance"
+
+This error on **Invite User** means the deployed admin app predates the invite-flow change and still calls `supabase.auth.signUp()` from the browser — an endpoint that is intentionally disabled project-wide (public signups off). Rebuild and redeploy that instance so it picks up the current `@bullfinch/cms` (the scaffold's `prebuild` script pulls the latest on every build). Do **not** re-enable public signups to make the error go away — that reopens self-registration for every tenant on the shared project.
 
 ---
 

@@ -544,7 +544,7 @@ async function cmdMigrate(flags: Record<string, string | true>): Promise<void> {
   console.log(`Running migrations for schema "${schema}"...`);
   const supabase = getSupabase();
 
-  const migrationFiles = ['001_initial', '002_fix_cascade_deletes', '003_test_mode', '004_grant_roles', '005_auto_grant_event_trigger', '006_exec_sql_helpers', '007_public_read_policies'];
+  const migrationFiles = ['001_initial', '002_fix_cascade_deletes', '003_test_mode', '004_grant_roles', '005_auto_grant_event_trigger', '006_exec_sql_helpers', '007_public_read_policies', '007_tenant_isolation'];
 
   // Check which migrations have already been applied
   const { data: applied } = await supabase.rpc('exec_sql_read', {
@@ -568,7 +568,14 @@ async function cmdMigrate(flags: Record<string, string | true>): Promise<void> {
     sql = sql.replace(/SCHEMA_NAME/g, schema);
 
     const { error } = await supabase.rpc('exec_sql', { query: sql });
-    if (error) die(`Migration ${name} failed: ${error.message}`);
+    if (error) {
+      // exec_sql runs as its owner, which cannot alter triggers on auth.users
+      // or create event triggers — those statements need SQL-editor privileges.
+      const hint = /must be owner|permission denied/i.test(error.message)
+        ? `\nThis migration needs SQL-editor privileges. Paste src/schema/migrations/${name}.sql (with SCHEMA_NAME replaced by "${schema}") into the Supabase SQL Editor, then re-run migrate.`
+        : '';
+      die(`Migration ${name} failed: ${error.message}${hint}`);
+    }
     console.log(`  ✓ ${name}`);
     ranCount++;
   }
@@ -682,7 +689,7 @@ async function cmdVerify(flags: Record<string, string | true>): Promise<VerifyCh
   checks.push({ name: 'Event trigger exists', pass: triggerOk });
 
   // 7. All migrations applied
-  const allMigrations = ['001_initial', '002_fix_cascade_deletes', '003_test_mode', '004_grant_roles', '005_auto_grant_event_trigger', '006_exec_sql_helpers'];
+  const allMigrations = ['001_initial', '002_fix_cascade_deletes', '003_test_mode', '004_grant_roles', '005_auto_grant_event_trigger', '006_exec_sql_helpers', '007_public_read_policies', '007_tenant_isolation'];
   const { data: applied } = await supabase.rpc('exec_sql_read', {
     query: `SELECT name FROM ${schema}._migrations`,
   });
@@ -697,6 +704,19 @@ async function cmdVerify(flags: Record<string, string | true>): Promise<VerifyCh
     name: 'All migrations applied',
     pass: missingMigrations.length === 0,
     detail: missingMigrations.length > 0 ? `missing: ${missingMigrations.join(', ')}` : undefined,
+  });
+
+  // 8. Tenant isolation — the legacy auto-provision trigger must be gone.
+  // While it exists, every new auth user in the project gets a users row in
+  // this schema, regardless of which tenant invited them.
+  const { data: legacyTrigger } = await supabase.rpc('exec_sql_read', {
+    query: `SELECT t.tgname FROM pg_trigger t JOIN pg_class c ON c.oid = t.tgrelid JOIN pg_namespace n ON n.oid = c.relnamespace WHERE n.nspname = 'auth' AND c.relname = 'users' AND t.tgname = 'on_auth_user_created_${schema}'`,
+  });
+  const legacyTriggerGone = !Array.isArray(legacyTrigger) || legacyTrigger.length === 0;
+  checks.push({
+    name: 'Tenant isolation (no auth.users auto-provision trigger)',
+    pass: legacyTriggerGone,
+    detail: legacyTriggerGone ? undefined : `on_auth_user_created_${schema} still exists — run migrate to apply 007_tenant_isolation`,
   });
 
   printVerifyResults(checks, schema, flags);
@@ -1800,7 +1820,8 @@ Verify that a schema is correctly configured. Checks:
   - PostgREST schema exposure (requires SUPABASE_ACCESS_TOKEN)
   - exec_sql / exec_sql_read functions exist
   - Event trigger exists
-  - All migrations applied
+  - All migrations applied (including 007_tenant_isolation)
+  - Tenant isolation: legacy auth.users auto-provision trigger removed
 
 Flags:
   --schema <name>    Schema name

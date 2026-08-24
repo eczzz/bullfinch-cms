@@ -137,7 +137,7 @@ Example field definition:
 
 ## Schema Verification
 
-The CLI includes a `verify` command that runs a 7-point checklist against any schema:
+The CLI includes a `verify` command that runs an 8-point checklist against any schema:
 
 ```bash
 npx tsx src/cli/index.ts verify --schema cms_<client>
@@ -150,7 +150,8 @@ npx tsx src/cli/index.ts verify --schema cms_<client>
 - ✅ PostgREST schema exposure (if `SUPABASE_ACCESS_TOKEN` is set)
 - ✅ `exec_sql` and `exec_sql_read` helper functions exist
 - ✅ Auto-grant event trigger exists for the schema
-- ✅ All migrations applied (001–007)
+- ✅ All migrations applied (001–007, including BOTH 007s: public_read_policies AND tenant_isolation)
+- ✅ Tenant isolation: legacy `auth.users` auto-provision trigger removed (security-critical — see Migrations Reference)
 
 Exit code 0 = all pass, 1 = failures. Use `--json` for machine-readable output.
 
@@ -164,12 +165,21 @@ Exit code 0 = all pass, 1 = failures. Use `--json` for machine-readable output.
    - `SUPABASE_SERVICE_ROLE_KEY` (required)
    - `SUPABASE_ACCESS_TOKEN` (optional — enables auto-exposing schema via PostgREST Management API)
 3. **Init schema:** `npx tsx src/cli/index.ts init --schema cms_<client> --name "<Client Name>"`
-   - Init automatically runs ALL migrations (001–007) — new schemas are fully configured
+   - Init automatically runs ALL migrations — new schemas are fully configured
    - Migration 005 installs an event trigger that auto-grants permissions on any future tables
    - Migration 006 creates `exec_sql` and `exec_sql_read` helpers — no manual SQL Editor step
-   - Migration 007 adds anon SELECT policies on content_models / content_entries / media so the frontend can read via the anon key (without these the frontend gets `[]` on every query)
+   - Migration 007_public_read_policies adds anon SELECT policies on content_models / content_entries / media so the frontend can read via the anon key (without these the frontend gets `[]` on every query)
+   - Migration 007_tenant_isolation removes the legacy `auth.users` auto-provision trigger — without it, every new auth user in the project (invited by ANY tenant) gets a users row in this schema (cross-tenant access leak)
    - Init chains into `verify` automatically — you get a green/red checklist immediately
-4. **Scaffold client CMS app:**
+4. **Deploy edge functions** (once per Supabase project — skip if another tenant on this project already has them):
+   ```bash
+   supabase link --project-ref <project-ref>
+   supabase functions deploy admin-create-user   # user invites (public signups are disabled)
+   supabase functions deploy r2-presign          # media upload presigning
+   supabase functions deploy r2-import           # "Import from URL"
+   ```
+5. **Create the first admin** — auth users are project-wide but tenant access = a row in `cms_<client>.users`. Create the auth user (Dashboard → Authentication → Add User), then insert their membership row with role `Admin` (SQL Editor). All later users are invited from the admin panel (Settings → Users), which goes through `admin-create-user`. Never enable public signups.
+6. **Scaffold client CMS app:**
    ```bash
    npx tsx src/cli/index.ts scaffold --name "<Client Name>" --schema cms_<client> --dir ./<client>-cms --primary "#224059" --accent "#FFC844"
    cd <client>-cms
@@ -182,11 +192,11 @@ Exit code 0 = all pass, 1 = failures. Use `--json` for machine-readable output.
      - `resolve.dedupe` in Vite config (no dual React)
      - Netlify `_redirects` for SPA routing (no 404s on refresh)
      - Branding config with business name and colors
-5. **Verify** (if not using init, or to double-check):
+7. **Verify** (if not using init, or to double-check):
    ```bash
    npx tsx src/cli/index.ts verify --schema cms_<client>
    ```
-6. **Media storage (Cloudflare R2):** built into the CMS — see the next section. Enter creds in Settings → Integrations (or via `settings set`). Do NOT write any storage code.
+8. **Media storage (Cloudflare R2):** built into the CMS — see the next section. Enter creds in Settings → Integrations (or via `settings set`). Do NOT write any storage code.
 
 ## Media Storage — Built-in Cloudflare R2 Integration
 
@@ -213,13 +223,21 @@ npx tsx src/cli/index.ts media import --schema cms_<client> --url https://exampl
 
 Troubleshooting uploads: all five `integration_r2_*` settings present? Edge functions deployed (`supabase functions list`)? Bucket CORS allows `PUT` from the admin origin? No `storage` prop overriding the integration?
 
-### Updating Existing Client Schemas
+### Updating Existing Client Schemas — Run for EVERY Tenant
 
-To backfill new migrations (service_role grants, event trigger, exec_sql helpers, public-read policies) on existing schemas:
+🔴 **Migrations are per-schema; the Supabase project is shared.** After any bullfinch-cms update, run migrate + verify on **every** tenant schema in the project, not just the one you're working on. A skipped schema silently keeps old behavior — this is exactly how the cross-tenant membership leak happened: `007_tenant_isolation` was applied ad hoc to 3 of 8 schemas, and the 5 stale ones kept auto-adding every newly invited user (from any tenant) to their own member lists for months.
+
+For each schema on the project:
 ```bash
 npx tsx src/cli/index.ts migrate --schema cms_<client>
 npx tsx src/cli/index.ts verify --schema cms_<client>
 ```
+
+If migrate fails with `must be owner of relation users` or `permission denied to create event trigger`: `exec_sql` can't alter `auth.users` triggers or create event triggers. Run that migration's SQL (SCHEMA_NAME replaced) via the Supabase SQL Editor or the Management API `database/query` endpoint instead, then re-run `verify` to confirm.
+
+Then, if the update touched:
+- **an edge function** → redeploy it (`supabase functions deploy <name>`) — once per project
+- **the React package** → rebuild + redeploy every client app. Apps bundle `@bullfinch/cms` at build time; DB-side fixes don't reach the admin UI until each app is rebuilt. A stale app calling a removed flow surfaces as errors like "Signups not allowed for this instance".
 
 ## The Page Wiring Loop
 
@@ -425,8 +443,9 @@ Field order = grouped by section, in page reading order.
 | 005_auto_grant_event_trigger | Event trigger that auto-grants on any new table in the schema |
 | 006_exec_sql_helpers | Creates exec_sql + exec_sql_read in public schema |
 | 007_public_read_policies | anon SELECT on content_models / content_entries (published only) / media — required for frontend fetches via the anon key |
+| 007_tenant_isolation | **Security-critical.** Drops the per-schema `on_auth_user_created_*` trigger on `auth.users` and the `users_insert_self` RLS policy; adds `public.find_auth_user_id()` for the invite edge function. A schema WITHOUT this migration adds a users row to itself for every new auth user in the project — i.e. anyone invited to any tenant gets access to this one |
 
-All migrations are idempotent (safe to run multiple times). The `init` command chains all of them automatically.
+All migrations are idempotent (safe to run multiple times). The `init` command chains all of them automatically. Note the two `007_*` files share a number prefix (historical accident) — both must be applied; the migration tracker records full names, so the CLI handles this correctly.
 
 ## Common Gotchas
 
@@ -438,5 +457,8 @@ All migrations are idempotent (safe to run multiple times). The `init` command c
 - **CSS background images** — use CSS custom property pattern, not hardcoded
 - **SEO goes in `--seo` flag** — not as model fields. Use `--seo` on `entries create` / `entries update`
 - **Init runs all migrations** — new schemas are always fully configured
+- **After updating bullfinch-cms, migrate EVERY schema on the project** — migrations are per-schema; one stale schema can undermine all tenants (see Updating Existing Client Schemas)
+- **"Signups not allowed for this instance" on invite** — the deployed app is a stale bundle still calling `auth.signUp`. Rebuild + redeploy the instance. NEVER enable public signups to work around it — that reopens self-registration for every tenant on the shared project
+- **User invites go through the `admin-create-user` edge function** — deployed once per project; requires `007_tenant_isolation` on every schema
 - **PostgREST returns empty?** — run `verify` first. Usually missing `service_role` grants or schema not exposed
 - **Something broken after setup?** — `bullfinch-cms verify --schema cms_xxx` is always the first troubleshooting step
