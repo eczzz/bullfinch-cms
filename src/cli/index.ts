@@ -948,6 +948,12 @@ async function cmdModelsUpdate(flags: Record<string, string | true>): Promise<vo
   if (optionalFlag(flags, 'icon')) updates.icon = optionalFlag(flags, 'icon');
   if (optionalFlag(flags, 'fields')) updates.fields = parseFieldsArg(optionalFlag(flags, 'fields')!, force);
 
+  const newApiId = optionalFlag(flags, 'api-id');
+  if (newApiId !== undefined && newApiId !== apiId) {
+    await assertApiIdFree(supabase, newApiId);
+    updates.api_identifier = newApiId;
+  }
+
   const { data, error } = await supabase
     .from('content_models')
     .update(updates)
@@ -957,6 +963,42 @@ async function cmdModelsUpdate(flags: Record<string, string | true>): Promise<vo
   if (error) die(error.message);
 
   output(data, flags);
+
+  if (updates.api_identifier && !isJson(flags)) {
+    console.error(
+      `\nRenamed api_identifier "${apiId}" -> "${newApiId}". Entries are untouched (they join on ` +
+        `content_model_id), but anything resolving this model by its api_identifier — site helpers, ` +
+        `scripts, saved CLI commands — now needs the new one.`,
+    );
+  }
+}
+
+/**
+ * api_identifier is the stable handle code resolves a model by, so a rename gets the checks
+ * a create never needed: the target must be a legal identifier and must not already be taken.
+ * The platform schema has a UNIQUE constraint, but standalone projects predating it may not,
+ * where a duplicate would silently break every `.single()` lookup instead of erroring here.
+ */
+async function assertApiIdFree(supabase: SupabaseClient, newApiId: string): Promise<void> {
+  if (!/^[a-z][a-z0-9_]*$/.test(newApiId)) {
+    die(
+      `Invalid --api-id "${newApiId}". Use lowercase letters, digits and underscores, ` +
+        `starting with a letter (e.g. job_listing).`,
+    );
+  }
+
+  const { data: clash, error } = await supabase
+    .from('content_models')
+    .select('id, name')
+    .eq('api_identifier', newApiId)
+    .maybeSingle();
+  if (error) die(error.message);
+  if (clash) {
+    die(
+      `api_identifier "${newApiId}" is already used by model "${clash.name}" (${clash.id}). ` +
+        `Rename or delete that model first.`,
+    );
+  }
 }
 
 async function cmdModelsDelete(flags: Record<string, string | true>): Promise<void> {
@@ -1689,11 +1731,14 @@ Subcommands:
   list     --schema <name>
   get      --schema <name> --model <api_id>
   create   --schema <name> --name <name> --api-id <id> [--description <desc>] [--icon <emoji>] [--fields <json>] [--force]
-  update   --schema <name> --model <api_id> [--name <name>] [--description <desc>] [--icon <emoji>] [--fields <json>] [--force]
+  update   --schema <name> --model <api_id> [--name <name>] [--api-id <new_id>] [--description <desc>] [--icon <emoji>] [--fields <json>] [--force]
   delete   --schema <name> --model <api_id>
 
 Notes:
   --fields accepts inline JSON or a path to a .json file
+  --api-id on update renames the identifier itself. --model selects by the
+  current one, --api-id is the new one. Entries follow the model, but code
+  and scripts resolving the model by api_identifier must be updated too.
   Field types are validated. The json type is not allowed.
   Convention checks block long_text (use rich_text/short_text) and short_text
   fields with url/href in the name (use the url type). Pass --force to override.

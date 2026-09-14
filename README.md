@@ -885,10 +885,13 @@ npx @bullfinch/cms models create --schema cms_acme \
   --description "Blog articles" --icon "📝" \
   --fields '[{"id":"...","name":"Body","api_identifier":"body","field_type":"rich_text","required":true}]'
 npx @bullfinch/cms models update --schema cms_acme --model blog_post --name "Article"
+npx @bullfinch/cms models update --schema cms_acme --model blog_post --api-id article   # rename the identifier
 npx @bullfinch/cms models delete --schema cms_acme --model blog_post
 ```
 
 Models are referenced by `api_identifier` (e.g. `blog_post`), not UUID. The `--fields` flag accepts inline JSON or a file path to a JSON array of field definitions.
+
+`--api-id` on `update` renames the identifier itself: `--model` selects the model by its current identifier, `--api-id` is the new one. The new value must be lowercase letters, digits and underscores starting with a letter, and must not already be in use — both are checked before anything is written. Entries follow the model automatically because they join on `content_model_id`, but any site helper, script or saved command that resolves this model by `api_identifier` has to be updated to match.
 
 ### `entries` — Manage content entries
 
