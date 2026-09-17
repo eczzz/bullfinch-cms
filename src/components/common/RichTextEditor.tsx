@@ -81,7 +81,15 @@ export function RichTextEditor({
       Underline, Superscript, Subscript, TextStyle,
       Color, Highlight.configure({ multicolor: true }),
       TextAlign.configure({ types: ['heading', 'paragraph'] }),
-      Link.configure({ openOnClick: false }),
+      // TipTap's Link defaults every anchor to target="_blank" and
+      // rel="noopener noreferrer nofollow". On a client's own blog that
+      // nofollows their internal links (Hristopoulos had 74 of them) and pops
+      // same-site navigation into new tabs. Emit plain anchors; the site
+      // template can decorate external links if it wants to.
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: { target: null, rel: null },
+      }),
       Image.configure({ HTMLAttributes: { class: 'rounded-lg max-w-full h-auto' } }),
       Table.configure({ resizable: true }),
       TableRow, TableHeader, TableCell,
